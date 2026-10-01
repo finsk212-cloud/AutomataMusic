@@ -1,0 +1,7 @@
+displayName = Automata: Music
+author = Finsk
+version = 1.0.0
+homepage = 
+hideCode = false
+hideResources = false
+includeSource = true

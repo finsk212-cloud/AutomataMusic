@@ -1,0 +1,80 @@
+Configs: {
+	AutomataMusicConfig: {
+		DisplayName: Automata: Music Settings
+
+		Headers: {
+			GeneralSettings: General Settings
+			IndividualOverrides: Biome Music Overrides
+		}
+
+		ReplaceBossThemes: {
+			Label: Replace Boss Themes
+			Tooltip: When enabled, bosses will play custom NieR: Automata combat themes if the tracks are present.
+		}
+
+		ReplaceBiomeThemes: {
+			Label: Replace Biome Themes
+			Tooltip: Master toggle for ambient and biome theme replacements.
+		}
+
+		ShowNowPlayingNotification: {
+			Label: Show "Now Playing" Notification
+			Tooltip: Displays a clean toast notification for 5 seconds when a new NieR track starts playing.
+		}
+
+		ReplaceSurfaceThemes: {
+			Label: Replace Surface (Day/Night)
+			Tooltip: Plays City Ruins (Day) and Voice of No Return (Night) in Forest.
+		}
+
+		ReplaceTownThemes: {
+			Label: Replace Surface Town (Resistance Camp)
+			Tooltip: Plays Peaceful Sleep when near friendly Town NPCs in the Forest.
+		}
+
+		ReplaceRainThemes: {
+			Label: Replace Surface Rain
+			Tooltip: Plays Vague Hope (Cold Rain) when raining in the Forest.
+		}
+
+		ReplaceWindyThemes: {
+			Label: Replace Surface Windy Day
+			Tooltip: Plays Forest Kingdom during windy days in the Forest.
+		}
+
+		ReplaceUndergroundThemes: {
+			Label: Replace Underground / Caverns
+			Tooltip: Plays Amusement Park / Copied City in caverns.
+		}
+
+		ReplaceDesertThemes: {
+			Label: Replace Desert
+			Tooltip: Plays Memories of Dust in surface and underground desert.
+		}
+
+		ReplaceSnowThemes: {
+			Label: Replace Snow / Tundra
+			Tooltip: Plays Kaine Salvation / Peaceful Sleep in ice biomes.
+		}
+
+		ReplaceJungleThemes: {
+			Label: Replace Jungle
+			Tooltip: Plays Forest Kingdom / Pascal in jungle biomes.
+		}
+
+		ReplaceEvilBiomeThemes: {
+			Label: Replace Corruption / Crimson
+			Tooltip: Plays Wretched Weaponry in evil biomes and graveyards.
+		}
+
+		ReplaceUnderworldThemes: {
+			Label: Replace Underworld
+			Tooltip: Plays The Sound of the End in the Underworld (Hell).
+		}
+
+		ReplaceOceanThemes: {
+			Label: Replace Ocean
+			Tooltip: Plays Treasured Times on beaches and ocean.
+		}
+	}
+}

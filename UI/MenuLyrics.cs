@@ -50,22 +50,22 @@ namespace AutomataMusic.UI
 				"Watashi no sakebi sae dare ni mo todokanai",
 				"My cries are inconspicuous"),
 
-			new LyricEntry(53.5f, 60.5f,
+			new LyricEntry(53.0f, 58.5f,
 				"教えて神よ、私を罰しているのですか？",
 				"Oshiete kami yo, watashi o basshite iru no desu ka?",
-				"Tell me, God, are you punishing me?"),
+				"Tell me, God, why? Are you punishing me?"),
 
-			new LyricEntry(61.0f, 67.5f,
+			new LyricEntry(58.8f, 64.5f,
 				"過去の過ちへの代償なのでしょうか",
 				"Kako no ayamachi e no daishou na no deshou ka",
 				"Is this the price I'm paying for my past mistakes?"),
 
-			new LyricEntry(68.0f, 74.5f,
+			new LyricEntry(65.0f, 71.0f,
 				"これは私の贖罪の歌",
 				"Kore wa watashi no shokuzai no uta",
 				"This is my redemption song"),
 
-			new LyricEntry(74.8f, 80.5f,
+			new LyricEntry(71.5f, 80.5f,
 				"今、あなたが必要… 私の声が聞こえますか？",
 				"Ima, anata ga hitsuyou... Watashi no koe ga kikoemasu ka?",
 				"I need you more than ever right now / Can you hear me now?"),
@@ -96,7 +96,7 @@ namespace AutomataMusic.UI
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(117.5f, 123.0f,
+			new LyricEntry(118.5f, 124.0f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
@@ -122,22 +122,22 @@ namespace AutomataMusic.UI
 				"Inochi sono mono ga watashi no teki to natte shimatta",
 				"And life has become my enemy"),
 
-			new LyricEntry(160.8f, 167.5f,
+			new LyricEntry(160.2f, 165.5f,
 				"教えて神よ、私を罰しているのですか？",
 				"Oshiete kami yo, watashi o basshite iru no desu ka?",
-				"Tell me, God, are you punishing me?"),
+				"Tell me, God, why? Are you punishing me?"),
 
-			new LyricEntry(167.8f, 174.0f,
+			new LyricEntry(165.8f, 171.5f,
 				"過去の過ちへの代償なのでしょうか",
 				"Kako no ayamachi e no daishou na no deshou ka",
 				"Is this the price I'm paying for my past mistakes?"),
 
-			new LyricEntry(174.2f, 180.5f,
+			new LyricEntry(172.0f, 178.0f,
 				"これは私の贖罪の歌",
 				"Kore wa watashi no shokuzai no uta",
 				"This is my redemption song"),
 
-			new LyricEntry(180.8f, 187.8f,
+			new LyricEntry(178.5f, 187.5f,
 				"今、あなたが必要… 私の声が聞こえますか？",
 				"Ima, anata ga hitsuyou... Watashi no koe ga kikoemasu ka?",
 				"I need you more than ever right now / Can you hear me now?"),
@@ -168,7 +168,7 @@ namespace AutomataMusic.UI
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(223.5f, 227.5f,
+			new LyricEntry(224.5f, 228.0f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
@@ -199,12 +199,12 @@ namespace AutomataMusic.UI
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(263.0f, 267.0f,
+			new LyricEntry(263.5f, 267.0f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
 
-			// 267.5s - 270.0s: Musical SILENCE / drop before the explosion
+			// 267.0s - 270.5s: Clean musical silence / drop before explosion (no lyrics)
 
 			new LyricEntry(270.5f, 277.5f,
 				"それでも、大声で叫び続ける",
@@ -242,7 +242,7 @@ namespace AutomataMusic.UI
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(318.5f, 327.0f,
+			new LyricEntry(319.5f, 327.0f,
 				"命よ、蘇れ…",
 				"Inochi yo, yomigaere...",
 				"Come to life...")

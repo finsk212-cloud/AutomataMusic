@@ -38,7 +38,7 @@ BOSS THEMES
 
 7. Moon Lord
    - Accepted File Names:
-     DarkColossusKaiju.ogg  OR  TheEndOfTheUnknown.ogg  OR  WeightOfTheWorld.ogg  OR  MoonLord.ogg
+     DarkColossusKaiju.ogg  OR  TheEndOfTheUnknown.ogg  OR  MoonLord.ogg
 
 ----------------------------------------------------------------------
 BIOME / AMBIENT THEMES

@@ -166,7 +166,7 @@ namespace AutomataMusic.SceneEffects.Bosses
 	/// </summary>
 	public class MoonLordSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/DarkColossusKaiju", "Assets/Music/TheEndOfTheUnknown", "Assets/Music/WeightOfTheWorld", "Assets/Music/MoonLord" };
+		private static readonly string[] Tracks = { "Assets/Music/DarkColossusKaiju", "Assets/Music/TheEndOfTheUnknown", "Assets/Music/MoonLord" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 

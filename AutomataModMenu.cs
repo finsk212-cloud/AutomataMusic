@@ -40,6 +40,17 @@ namespace AutomataMusic
 				return;
 			}
 
+			// When Alt-Tabbed or game window lost focus, Terraria pauses audio: pause the stopwatch too!
+			bool isAudioPaused = !Terraria.Main.hasFocus || SoundEngine.AreSoundsPaused;
+			if (isAudioPaused)
+			{
+				if (songStopwatch.IsRunning)
+				{
+					songStopwatch.Stop();
+				}
+				return;
+			}
+
 			// Wait until the audio track actually starts producing sound
 			if (!hasStartedPlaying)
 			{
@@ -72,7 +83,13 @@ namespace AutomataMusic
 			}
 			else
 			{
-				// Keep running smoothly uninterrupted! Loop only when the entire 5:44 song ends
+				// Resume if it was paused from an Alt-Tab
+				if (!songStopwatch.IsRunning)
+				{
+					songStopwatch.Start();
+				}
+
+				// Loop only when the full 5:44 song ends
 				if (songStopwatch.Elapsed.TotalSeconds > 344.607)
 				{
 					songStopwatch.Restart();

@@ -96,7 +96,7 @@ namespace AutomataMusic.UI
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(116.5f, 122.0f,
+			new LyricEntry(117.5f, 123.0f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
@@ -163,34 +163,61 @@ namespace AutomataMusic.UI
 				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
 				"But the truth is that I'm only one girl"),
 
-			// Post-Chorus 2 / Bridge
 			new LyricEntry(215.5f, 222.0f,
 				"信じ続ければ、いつか夢は叶うのだろうか",
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(222.5f, 227.5f,
+			new LyricEntry(223.5f, 227.5f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
 
-			new LyricEntry(256.5f, 264.0f,
+			// Bridge
+			new LyricEntry(228.0f, 234.5f,
+				"意味などないとしても、大声で叫び続ける",
+				"Imi nado nai to shite mo, oogoe de sakebitsuzukeru",
+				"'Cause we're gonna shout it loud, even if our words seem meaningless"),
+
+			new LyricEntry(235.0f, 241.5f,
+				"世界の重荷を背負っているかのように",
+				"Sekai no omoni o seotte iru ka no you ni",
+				"It's like I'm carrying the weight of the world"),
+
+			new LyricEntry(242.0f, 248.5f,
 				"どうにかして、私たち全員を救えたらいいのに",
 				"Dounika shite, watashitachi zen'in o sukuetara ii no ni",
 				"I wish that someway, somehow that I could save every one of us"),
 
-			new LyricEntry(264.5f, 272.0f,
+			new LyricEntry(249.0f, 255.5f,
 				"でも本当は、私はただの一人の少女にすぎない",
 				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
 				"But the truth is that I'm only one girl"),
 
-			new LyricEntry(272.5f, 281.5f,
+			new LyricEntry(256.0f, 262.5f,
+				"信じ続ければ、いつか夢は叶うのだろうか",
+				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
+				"Maybe if I keep believing, my dreams will come to life"),
+
+			new LyricEntry(263.0f, 267.0f,
+				"叶うのだろうか…",
+				"Kanau no darou ka...",
+				"Come to life..."),
+
+			// 267.5s - 270.0s: Musical SILENCE / drop before the explosion
+
+			new LyricEntry(270.5f, 277.5f,
 				"それでも、大声で叫び続ける",
 				"Soredemo, oogoe de sakebitsuzukeru",
 				"Still, we're gonna shout it loud, even if our words seem meaningless"),
 
-			// Climax Chorus
-			new LyricEntry(282.0f, 289.0f,
+			new LyricEntry(278.0f, 282.0f,
+				"まるで世界の重荷を背負っているかのように",
+				"Marude sekai no omoni o seotte iru ka no you ni",
+				"It's like I'm carrying the weight of the world"),
+
+			// Climax (Choir & full orchestra)
+			new LyricEntry(282.5f, 289.0f,
 				"意味などないとしても、大声で叫び続ける",
 				"Imi nado nai to shite mo, oogoe de sakebitsuzukeru",
 				"'Cause we're gonna shout it loud, even if our words seem meaningless"),
@@ -210,12 +237,12 @@ namespace AutomataMusic.UI
 				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
 				"But the truth is that I'm only one girl"),
 
-			new LyricEntry(309.5f, 316.0f,
+			new LyricEntry(309.5f, 317.0f,
 				"信じ続ければ、いつか夢は叶うのだろうか",
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(316.5f, 325.0f,
+			new LyricEntry(318.5f, 327.0f,
 				"命よ、蘇れ…",
 				"Inochi yo, yomigaere...",
 				"Come to life...")
@@ -254,9 +281,9 @@ namespace AutomataMusic.UI
 					float duration = entry.End - entry.Start;
 					float progress = elapsedSeconds - entry.Start;
 
-					// Smooth 0.4s fade in and 0.4s fade out
-					float inAlpha = MathHelper.Clamp(progress / 0.4f, 0f, 1f);
-					float outAlpha = MathHelper.Clamp((entry.End - elapsedSeconds) / 0.4f, 0f, 1f);
+					// Smooth 0.35s fade in and 0.35s fade out
+					float inAlpha = MathHelper.Clamp(progress / 0.35f, 0f, 1f);
+					float outAlpha = MathHelper.Clamp((entry.End - elapsedSeconds) / 0.35f, 0f, 1f);
 					lineAlpha = Math.Min(inAlpha, outAlpha) * alpha;
 					break;
 				}

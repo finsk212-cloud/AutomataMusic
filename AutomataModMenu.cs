@@ -12,56 +12,74 @@ namespace AutomataMusic
 	public class AutomataModMenu : ModMenu
 	{
 		private static readonly Stopwatch songStopwatch = new Stopwatch();
+		private static bool hasStartedPlaying = false;
+		private static int previousMusic = -1;
 
 		public override string DisplayName => "Automata: Music (Weight of the World)";
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, "Assets/Music/WeightOfTheWorld", "Assets/Music/Menu", "Assets/Music/Title");
 
-		public static bool IsTrackActivelyPlaying(int musicId)
-		{
-			try
-			{
-				if (Terraria.Main.audioSystem is LegacyAudioSystem legacy && legacy.AudioTracks != null && musicId >= 0 && musicId < legacy.AudioTracks.Length)
-				{
-					var track = legacy.AudioTracks[musicId];
-					return track != null && track.IsPlaying;
-				}
-			}
-			catch { }
-
-			return Terraria.Main.curMusic == musicId;
-		}
-
 		public override void Update(bool isOnTitleScreen)
 		{
 			if (!isOnTitleScreen)
 			{
-				if (songStopwatch.IsRunning)
-					songStopwatch.Reset();
+				hasStartedPlaying = false;
+				songStopwatch.Reset();
+				previousMusic = -1;
 				return;
 			}
 
-			bool isPlaying = IsTrackActivelyPlaying(Music);
+			int currentMusic = Terraria.Main.curMusic;
 
-			if (isPlaying)
+			// If music changed away from our menu track, stop
+			if (currentMusic != Music)
 			{
-				if (!songStopwatch.IsRunning)
+				hasStartedPlaying = false;
+				songStopwatch.Reset();
+				previousMusic = currentMusic;
+				return;
+			}
+
+			// Wait until the audio track actually starts producing sound
+			if (!hasStartedPlaying)
+			{
+				bool isTrackReady = false;
+				try
 				{
-					songStopwatch.Restart();
+					if (Terraria.Main.audioSystem is LegacyAudioSystem legacy && legacy.AudioTracks != null && Music >= 0 && Music < legacy.AudioTracks.Length)
+					{
+						var track = legacy.AudioTracks[Music];
+						if (track != null && track.IsPlaying)
+						{
+							isTrackReady = true;
+						}
+					}
+					else
+					{
+						isTrackReady = true;
+					}
 				}
-				else if (songStopwatch.Elapsed.TotalSeconds > 344.607)
+				catch
 				{
-					// Song finished and looped; restart stopwatch
+					isTrackReady = true;
+				}
+
+				if (isTrackReady)
+				{
+					hasStartedPlaying = true;
 					songStopwatch.Restart();
 				}
 			}
 			else
 			{
-				if (songStopwatch.IsRunning)
+				// Keep running smoothly uninterrupted! Loop only when the entire 5:44 song ends
+				if (songStopwatch.Elapsed.TotalSeconds > 344.607)
 				{
-					songStopwatch.Reset();
+					songStopwatch.Restart();
 				}
 			}
+
+			previousMusic = currentMusic;
 		}
 
 		public override void PostDrawLogo(SpriteBatch spriteBatch, Vector2 logoDrawCenter, float logoRotation, float logoScale, Color drawColor)
@@ -69,7 +87,7 @@ namespace AutomataMusic
 			if (!AutomataMusicConfig.Instance.ShowMenuLyrics)
 				return;
 
-			if (!IsTrackActivelyPlaying(Music) || !songStopwatch.IsRunning)
+			if (!hasStartedPlaying || !songStopwatch.IsRunning)
 				return;
 
 			float elapsedSeconds = (float)songStopwatch.Elapsed.TotalSeconds;

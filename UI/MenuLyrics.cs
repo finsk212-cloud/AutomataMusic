@@ -51,9 +51,9 @@ namespace AutomataMusic.UI
 				"My cries are inconspicuous"),
 
 			new LyricEntry(53.5f, 60.5f,
-				"教えて神よ、なぜ？ 私を罰しているのですか？",
-				"Oshiete kami yo, naze? Watashi o basshite iru no desu ka?",
-				"Tell me, God, why? Are you punishing me?"),
+				"教えて神よ、私を罰しているのですか？",
+				"Oshiete kami yo, watashi o basshite iru no desu ka?",
+				"Tell me, God, are you punishing me?"),
 
 			new LyricEntry(61.0f, 67.5f,
 				"過去の過ちへの代償なのでしょうか",
@@ -123,9 +123,9 @@ namespace AutomataMusic.UI
 				"And life has become my enemy"),
 
 			new LyricEntry(160.8f, 167.5f,
-				"教えて神よ、なぜ？ 私を罰しているのですか？",
-				"Oshiete kami yo, naze? Watashi o basshite iru no desu ka?",
-				"Tell me, God, why? Are you punishing me?"),
+				"教えて神よ、私を罰しているのですか？",
+				"Oshiete kami yo, watashi o basshite iru no desu ka?",
+				"Tell me, God, are you punishing me?"),
 
 			new LyricEntry(167.8f, 174.0f,
 				"過去の過ちへの代償なのでしょうか",

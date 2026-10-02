@@ -30,7 +30,7 @@ namespace AutomataMusic.UI
 		public static readonly LyricEntry[] Lyrics = new LyricEntry[]
 		{
 			// Verse 1
-			new LyricEntry(13.5f, 19.5f,
+			new LyricEntry(13.8f, 19.5f,
 				"心の中で　希望を失いかけている",
 				"Kokoro no naka de kibou o ushinaikakete iru",
 				"I feel like I'm losing hope in my mind"),

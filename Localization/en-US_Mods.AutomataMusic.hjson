@@ -63,8 +63,18 @@ Configs: {
 		}
 
 		ReplaceEvilBiomeThemes: {
-			Label: Replace Corruption / Crimson
-			Tooltip: Plays Wretched Weaponry in evil biomes and graveyards.
+			Label: Replace Evil Biomes Master
+			Tooltip: Master toggle for Crimson, Corruption, and Graveyard music overrides.
+		}
+
+		ReplaceCrimsonThemes: {
+			Label: Replace Crimson
+			Tooltip: Plays Alien Manifestation in the Crimson.
+		}
+
+		ReplaceCorruptionThemes: {
+			Label: Replace Corruption
+			Tooltip: Plays Possessed by Disease in the Corruption.
 		}
 
 		ReplaceUnderworldThemes: {

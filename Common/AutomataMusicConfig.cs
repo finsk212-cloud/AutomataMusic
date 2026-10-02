@@ -50,6 +50,12 @@ namespace AutomataMusic.Common
 		public bool ReplaceEvilBiomeThemes;
 
 		[DefaultValue(true)]
+		public bool ReplaceCrimsonThemes;
+
+		[DefaultValue(true)]
+		public bool ReplaceCorruptionThemes;
+
+		[DefaultValue(true)]
 		public bool ReplaceUnderworldThemes;
 
 		[DefaultValue(true)]

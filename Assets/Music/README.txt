@@ -84,9 +84,15 @@ BIOME / AMBIENT THEMES
    - Accepted File Names:
      ForestKingdom.ogg  OR  Pascal.ogg  OR  Jungle.ogg
 
-7. Evil Biomes (Corruption, Crimson, Graveyard)
+7. Crimson Biome
+   - Recommended: Alien Manifestation
    - Accepted File Names:
-     WretchedWeaponry.ogg  OR  EmilDespair.ogg  OR  EvilBiome.ogg
+     AlienManifestation.ogg/mp3  OR  Crimson.ogg/mp3
+
+8. Corruption Biome
+   - Recommended: Possessed by Disease
+   - Accepted File Names:
+     PossessedByDisease.ogg/mp3  OR  Corruption.ogg/mp3  OR  WretchedWeaponry.ogg/mp3
 
 8. Underworld (Hell)
    - Accepted File Names:

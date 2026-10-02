@@ -278,16 +278,66 @@ namespace AutomataMusic.SceneEffects.Biomes
 	}
 
 	/// <summary>
-	/// Corruption / Crimson / Graveyard evil theme.
-	/// Default track candidates: "WretchedWeaponry", "EmilDespair", or "EvilBiome"
+	/// Crimson biome theme: Alien Manifestation.
+	/// Default track candidates: "AlienManifestation" or "Crimson"
 	/// </summary>
-	public class EvilBiomeSceneEffect : ModSceneEffect
+	public class CrimsonSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/WretchedWeaponry", "Assets/Music/EmilDespair", "Assets/Music/EvilBiome" };
+		private static readonly string[] Tracks = { "Assets/Music/AlienManifestation", "Assets/Music/Crimson", "Assets/Music/EvilBiome" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
 		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+
+		public override bool IsSceneEffectActive(Player player)
+		{
+			var cfg = AutomataMusicConfig.Instance;
+			if (!cfg.ReplaceBiomeThemes || !cfg.ReplaceEvilBiomeThemes || !cfg.ReplaceCrimsonThemes)
+				return false;
+
+			if (!MusicHelper.HasAnyTrack(Mod, Tracks))
+				return false;
+
+			return player.ZoneCrimson;
+		}
+	}
+
+	/// <summary>
+	/// Corruption biome theme: Possessed by Disease.
+	/// Default track candidates: "PossessedByDisease", "Corruption", or "WretchedWeaponry"
+	/// </summary>
+	public class CorruptionSceneEffect : ModSceneEffect
+	{
+		private static readonly string[] Tracks = { "Assets/Music/PossessedByDisease", "Assets/Music/Corruption", "Assets/Music/WretchedWeaponry", "Assets/Music/EvilBiome" };
+
+		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
+
+		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+
+		public override bool IsSceneEffectActive(Player player)
+		{
+			var cfg = AutomataMusicConfig.Instance;
+			if (!cfg.ReplaceBiomeThemes || !cfg.ReplaceEvilBiomeThemes || !cfg.ReplaceCorruptionThemes)
+				return false;
+
+			if (!MusicHelper.HasAnyTrack(Mod, Tracks))
+				return false;
+
+			return player.ZoneCorrupt;
+		}
+	}
+
+	/// <summary>
+	/// Graveyard mini-biome theme.
+	/// Default track candidates: "WretchedWeaponry", "PossessedByDisease", or "AlienManifestation"
+	/// </summary>
+	public class GraveyardSceneEffect : ModSceneEffect
+	{
+		private static readonly string[] Tracks = { "Assets/Music/WretchedWeaponry", "Assets/Music/EmilDespair", "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation", "Assets/Music/EvilBiome" };
+
+		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
+
+		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeMedium;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -298,7 +348,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 			if (!MusicHelper.HasAnyTrack(Mod, Tracks))
 				return false;
 
-			return player.ZoneCorrupt || player.ZoneCrimson || player.ZoneGraveyard;
+			return player.ZoneGraveyard && !player.ZoneCrimson && !player.ZoneCorrupt;
 		}
 	}
 

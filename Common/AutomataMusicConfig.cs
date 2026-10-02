@@ -20,6 +20,9 @@ namespace AutomataMusic.Common
 		[DefaultValue(true)]
 		public bool ShowNowPlayingNotification;
 
+		[DefaultValue(true)]
+		public bool ShowMenuLyrics;
+
 		[Header("IndividualOverrides")]
 
 		[DefaultValue(true)]

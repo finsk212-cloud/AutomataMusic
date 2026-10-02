@@ -1,9 +1,9 @@
 using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using ReLogic.Graphics;
 using Terraria;
 using Terraria.GameContent;
-using ReLogic.Graphics;
 
 namespace AutomataMusic.UI
 {
@@ -30,117 +30,199 @@ namespace AutomataMusic.UI
 		public static readonly LyricEntry[] Lyrics = new LyricEntry[]
 		{
 			// Verse 1
-			new LyricEntry(14.0f, 26.5f,
-				"息絶えた世界に　一人佇む",
-				"Ikitaeta sekai ni hitori tatazumu",
-				"I feel like I'm losing hope in what I've been doing"),
+			new LyricEntry(13.5f, 19.5f,
+				"心の中で　希望を失いかけている",
+				"Kokoro no naka de kibou o ushinaikakete iru",
+				"I feel like I'm losing hope in my mind"),
 
-			new LyricEntry(27.0f, 39.5f,
-				"色を失くした大地　見つめて",
-				"Iro o nakushita daichi mitsumete",
-				"I feel like each day is gone without any meaning"),
+			new LyricEntry(20.0f, 26.5f,
+				"そして　時は止まる",
+				"Soshite toki wa tomaru",
+				"And as time comes to a halt"),
 
-			new LyricEntry(40.5f, 53.5f,
-				"冷たい風が吹き抜けてゆく",
-				"Tsumetai kaze ga fukinukete yuku",
-				"A cold wind pulls out of the dark, and into the sun"),
+			new LyricEntry(27.0f, 34.0f,
+				"教えて神よ、私を罰しているのですか？",
+				"Oshiete kami yo, watashi o basshite iru no desu ka?",
+				"Tell me, God, are you punishing me?"),
 
-			new LyricEntry(54.0f, 67.0f,
-				"もう二度と戻らない　あの日の温もり",
-				"Mou nido to modoranai ano hi no nukumori",
-				"It tells me there's no going back from what I've become"),
+			new LyricEntry(34.5f, 41.0f,
+				"過去の過ちへの代償なのでしょうか",
+				"Kako no ayamachi e no daishou na no deshou ka",
+				"Is this the price I'm paying for my past mistakes?"),
 
-			// Verse 2
-			new LyricEntry(68.0f, 80.5f,
-				"壊れた世界で　祈り捧げて",
-				"Kowareta sekai de inori sasagete",
-				"I feel like I'm losing hope in what I've been doing"),
+			new LyricEntry(41.5f, 47.5f,
+				"これは私の贖罪の歌",
+				"Kore wa watashi no shokuzai no uta",
+				"This is my redemption song"),
 
-			new LyricEntry(81.0f, 94.0f,
-				"届かぬ願いに　涙こぼれる",
-				"Todokanu negai ni namida koboreru",
-				"I feel like each day is gone without any meaning"),
+			new LyricEntry(48.0f, 54.5f,
+				"今、誰よりもあなたを必要としている",
+				"Ima, dare yori mo anata o hitsuyou to shite iru",
+				"I need you more than ever right now"),
 
-			new LyricEntry(94.5f, 107.0f,
-				"叫び声さえ　闇に消えてゆく",
-				"Sakebigoe sae yami ni kiete yuku",
-				"I feel like I'm shouting, but no one can hear me"),
-
-			new LyricEntry(107.5f, 120.0f,
-				"救いを求めて　手を伸ばすのに",
-				"Sukui o motomete te o nobasu no ni",
-				"I feel like I'm falling, and no one can save me"),
+			new LyricEntry(55.0f, 60.5f,
+				"今、私の声が聞こえますか？",
+				"Ima, watashi no koe ga kikoemasu ka?",
+				"Can you hear me now?"),
 
 			// Chorus 1
-			new LyricEntry(121.0f, 134.0f,
-				"叫び続ける　意味などなくても",
-				"Sakebi tsuzukeru imi nado nakute mo",
+			new LyricEntry(61.0f, 68.5f,
+				"意味などないとしても、大声で叫び続ける",
+				"Imi nado nai to shite mo, oogoe de sakebitsuzukeru",
 				"'Cause we're gonna shout it loud, even if our words seem meaningless"),
 
-			new LyricEntry(134.5f, 147.5f,
-				"終焉の時を　一人で迎えるとしても",
-				"Shuuen no toki o hitori de mukaeru to shite mo",
-				"It's tough to face the end of the world, when you're all on your own"),
+			new LyricEntry(69.0f, 75.5f,
+				"まるで世界の重荷を背負っているかのように",
+				"Marude sekai no omoni o seotte iru ka no you ni",
+				"It's like I'm carrying the weight of the world"),
 
-			new LyricEntry(148.0f, 160.5f,
-				"叫び続ける　届かぬとしても",
-				"Sakebi tsuzukeru todokanu to shite mo",
-				"'Cause we're gonna shout it loud, even if our words seem meaningless"),
+			new LyricEntry(76.0f, 83.0f,
+				"どうにかして、私たち全員を救えたらいいのに",
+				"Dounika shite, watashitachi zen'in o sukuetara ii no ni",
+				"I wish that someway, somehow that I could save every one of us"),
 
-			new LyricEntry(161.0f, 176.5f,
-				"変わらぬ世界に　抗い続けて",
-				"Kawaranu sekai ni aragai tsuzukete",
-				"It's tough to make a change to a world that doesn't care anymore"),
+			new LyricEntry(83.5f, 90.0f,
+				"でも本当は、私はただの一人の少女にすぎない",
+				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
+				"But the truth is that I'm only one girl"),
 
-			// Interlude: 177 - 191
+			new LyricEntry(90.5f, 98.0f,
+				"信じ続ければ、いつか夢は叶うのだろうか",
+				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
+				"Maybe if I keep believing, my dreams will come to life"),
 
-			// Verse 3
-			new LyricEntry(191.5f, 204.0f,
-				"息絶えた世界に　一人佇む",
-				"Ikitaeta sekai ni hitori tatazumu",
-				"I feel like I'm losing hope in what I've been doing"),
+			new LyricEntry(98.5f, 104.5f,
+				"叶うのだろうか…",
+				"Kanau no darou ka...",
+				"Come to life..."),
 
-			new LyricEntry(204.5f, 217.0f,
-				"色を失くした大地　見つめて",
-				"Iro o nakushita daichi mitsumete",
-				"I feel like each day is gone without any meaning"),
+			// Verse 2
+			new LyricEntry(117.5f, 124.5f,
+				"笑い声が消え去り、生命の痕跡は洗い流され",
+				"Waraigoe ga kiesari, inochi no konseki wa arainagasare",
+				"After all the laughter fades, signs of life all washed away"),
 
-			new LyricEntry(217.5f, 230.0f,
-				"叫び声さえ　闇に消えてゆく",
-				"Sakebigoe sae yami ni kiete yuku",
-				"I feel like I'm shouting, but no one can hear me"),
+			new LyricEntry(125.0f, 132.0f,
+				"それでもまだ、穏やかな風を感じることができる",
+				"Soredemo mada, odayakana kaze o kanjiru koto ga dekiru",
+				"I can still, still feel a gentle breeze"),
 
-			new LyricEntry(230.5f, 243.0f,
-				"救いを求めて　手を伸ばすのに",
-				"Sukui o motomete te o nobasu no ni",
-				"I feel like I'm falling, and no one can save me"),
+			new LyricEntry(132.5f, 139.0f,
+				"どんなに熱心に祈ろうとも、警告の兆しは消えず",
+				"Donna ni nesshin ni inorou tomo, keikoku no kizashi wa kiezu",
+				"No matter how hard I pray, signs of warning still remain"),
+
+			new LyricEntry(139.5f, 146.5f,
+				"命そのものが私の敵となってしまった",
+				"Inochi sono mono ga watashi no teki to natte shimatta",
+				"And life has become my enemy"),
+
+			new LyricEntry(147.0f, 153.5f,
+				"教えて神よ、私を罰しているのですか？",
+				"Oshiete kami yo, watashi o basshite iru no desu ka?",
+				"Tell me, God, are you punishing me?"),
+
+			new LyricEntry(154.0f, 160.5f,
+				"過去の過ちへの代償なのでしょうか",
+				"Kako no ayamachi e no daishou na no deshou ka",
+				"Is this the price I'm paying for my past mistakes?"),
+
+			new LyricEntry(161.0f, 167.5f,
+				"これは私の贖罪の歌",
+				"Kore wa watashi no shokuzai no uta",
+				"This is my redemption song"),
+
+			new LyricEntry(168.0f, 174.5f,
+				"今、誰よりもあなたを必要としている",
+				"Ima, dare yori mo anata o hitsuyou to shite iru",
+				"I need you more than ever right now"),
+
+			new LyricEntry(175.0f, 180.5f,
+				"今、私の声が聞こえますか？",
+				"Ima, watashi no koe ga kikoemasu ka?",
+				"Can you hear me now?"),
 
 			// Chorus 2
-			new LyricEntry(244.0f, 257.0f,
-				"叫び続ける　意味などなくても",
-				"Sakebi tsuzukeru imi nado nakute mo",
+			new LyricEntry(181.0f, 188.5f,
+				"意味などないとしても、大声で叫び続ける",
+				"Imi nado nai to shite mo, oogoe de sakebitsuzukeru",
 				"'Cause we're gonna shout it loud, even if our words seem meaningless"),
 
-			new LyricEntry(257.5f, 270.0f,
-				"終焉の時を　一人で迎えるとしても",
-				"Shuuen no toki o hitori de mukaeru to shite mo",
-				"It's tough to face the end of the world, when you're all on your own"),
+			new LyricEntry(189.0f, 195.5f,
+				"まるで世界の重荷を背負っているかのように",
+				"Marude sekai no omoni o seotte iru ka no you ni",
+				"It's like I'm carrying the weight of the world"),
 
-			new LyricEntry(271.0f, 283.5f,
-				"叫び続ける　届かぬとしても",
-				"Sakebi tsuzukeru todokanu to shite mo",
+			new LyricEntry(196.0f, 203.0f,
+				"どうにかして、私たち全員を救えたらいいのに",
+				"Dounika shite, watashitachi zen'in o sukuetara ii no ni",
+				"I wish that someway, somehow that I could save every one of us"),
+
+			new LyricEntry(203.5f, 210.0f,
+				"でも本当は、私はただの一人の少女にすぎない",
+				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
+				"But the truth is that I'm only one girl"),
+
+			new LyricEntry(210.5f, 218.0f,
+				"信じ続ければ、いつか夢は叶うのだろうか",
+				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
+				"Maybe if I keep believing, my dreams will come to life"),
+
+			new LyricEntry(218.5f, 225.0f,
+				"叶うのだろうか…",
+				"Kanau no darou ka...",
+				"Come to life..."),
+
+			// Bridge / Climax
+			new LyricEntry(244.5f, 252.0f,
+				"意味などないとしても、大声で叫び続ける",
+				"Imi nado nai to shite mo, oogoe de sakebitsuzukeru",
 				"'Cause we're gonna shout it loud, even if our words seem meaningless"),
 
-			new LyricEntry(284.0f, 301.0f,
-				"変わらぬ世界に　抗い続けて",
-				"Kawaranu sekai ni aragai tsuzukete",
-				"It's tough to make a change to a world that doesn't care anymore"),
+			new LyricEntry(252.5f, 259.0f,
+				"世界の重荷を背負っているかのように",
+				"Sekai no omoni o seotte iru ka no you ni",
+				"Like I'm carrying the weight of the world"),
 
-			// Final Chorus / Outro (Choir)
-			new LyricEntry(302.0f, 335.0f,
-				"共に生きる　希望の光を信じて",
-				"Tomo ni ikiru kibou no hikari o shinjite",
-				"May you live on... We are not alone.")
+			new LyricEntry(259.5f, 266.5f,
+				"どうにかして、私たち全員を救えたらいいのに",
+				"Dounika shite, watashitachi zen'in o sukuetara ii no ni",
+				"I wish that someway, somehow that I could save every one of us"),
+
+			new LyricEntry(267.0f, 273.5f,
+				"でも本当は、私はただの一人の少女にすぎない",
+				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
+				"But the truth is that I'm only one girl"),
+
+			new LyricEntry(274.0f, 281.5f,
+				"それでも、大声で叫び続ける",
+				"Soredemo, oogoe de sakebitsuzukeru",
+				"Still, we're gonna shout it loud, even if our words seem meaningless"),
+
+			new LyricEntry(282.0f, 288.5f,
+				"まるで世界の重荷を背負っているかのように",
+				"Marude sekai no omoni o seotte iru ka no you ni",
+				"It's like I'm carrying the weight of the world"),
+
+			new LyricEntry(289.0f, 296.0f,
+				"どうか私たち全員を救えますように",
+				"Douka watashitachi zen'in o sukuemasu you ni",
+				"I hope that someway, somehow that I could save every one of us"),
+
+			new LyricEntry(296.5f, 303.0f,
+				"でも本当は、私はただの一人の少女にすぎない",
+				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
+				"But the truth is that I'm only one girl"),
+
+			new LyricEntry(303.5f, 311.0f,
+				"信じ続ければ、いつか夢は叶うのだろうか",
+				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
+				"Maybe if I keep believing, my dreams will come to life"),
+
+			new LyricEntry(311.5f, 325.0f,
+				"命よ、蘇れ…",
+				"Inochi yo, yomigaere...",
+				"Come to life...")
 		};
 
 		private static bool? isCjkSupported = null;
@@ -176,9 +258,9 @@ namespace AutomataMusic.UI
 					float duration = entry.End - entry.Start;
 					float progress = elapsedSeconds - entry.Start;
 
-					// Smooth 0.6s fade in and 0.6s fade out
-					float inAlpha = MathHelper.Clamp(progress / 0.6f, 0f, 1f);
-					float outAlpha = MathHelper.Clamp((entry.End - elapsedSeconds) / 0.6f, 0f, 1f);
+					// Smooth 0.5s fade in and 0.5s fade out
+					float inAlpha = MathHelper.Clamp(progress / 0.5f, 0f, 1f);
+					float outAlpha = MathHelper.Clamp((entry.End - elapsedSeconds) / 0.5f, 0f, 1f);
 					lineAlpha = Math.Min(inAlpha, outAlpha) * alpha;
 					break;
 				}
@@ -194,7 +276,7 @@ namespace AutomataMusic.UI
 			string bottomText = lyric.English;
 
 			float topScale = 0.88f;
-			float bottomScale = 0.76f;
+			float bottomScale = 0.78f;
 
 			Vector2 topSize = font.MeasureString(topText) * topScale;
 			Vector2 bottomSize = font.MeasureString(bottomText) * bottomScale;
@@ -217,7 +299,6 @@ namespace AutomataMusic.UI
 			for (int i = 0; i < slices; i++)
 			{
 				float norm = i / (float)slices; // 0 to 1
-				// Center peak curve: sin(norm * PI)
 				float curve = (float)Math.Sin(norm * Math.PI);
 				float bgA = curve * 0.75f * lineAlpha;
 				Rectangle r = new Rectangle((int)(bannerX + i * sliceW), (int)posY - 4, (int)(sliceW + 1f), (int)bannerH);

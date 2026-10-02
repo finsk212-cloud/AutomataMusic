@@ -9,6 +9,8 @@ namespace AutomataMusic
 	public class AutomataModMenu : ModMenu
 	{
 		private static int songFrame = 0;
+		private static bool wasOnTitleScreen = false;
+		private static int lastMusic = -1;
 
 		public override string DisplayName => "Automata: Music (Weight of the World)";
 
@@ -18,13 +20,22 @@ namespace AutomataMusic
 		{
 			if (isOnTitleScreen)
 			{
+				if (!wasOnTitleScreen || (Terraria.Main.curMusic != lastMusic && Terraria.Main.curMusic == Music))
+				{
+					songFrame = 0;
+				}
+
+				lastMusic = Terraria.Main.curMusic;
+				wasOnTitleScreen = true;
 				songFrame++;
+
 				// Reset loop after 340 seconds (5 min 40s)
 				if (songFrame > 20400)
 					songFrame = 0;
 			}
 			else
 			{
+				wasOnTitleScreen = false;
 				songFrame = 0;
 			}
 		}

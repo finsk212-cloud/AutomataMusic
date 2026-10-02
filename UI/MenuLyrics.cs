@@ -35,25 +35,25 @@ namespace AutomataMusic.UI
 				"Kokoro to karada no kibou sae ushinaikakete iru",
 				"I feel like I'm losing hope in my body and my soul"),
 
-			new LyricEntry(34.0f, 39.8f,
+			new LyricEntry(34.0f, 39.5f,
 				"見上げる空は　不吉な影を落とし",
 				"Miageru sora wa fukitsuna kage o otoshi",
 				"And the sky, it looks so ominous"),
 
-			new LyricEntry(40.0f, 47.0f,
+			new LyricEntry(39.8f, 46.0f,
 				"そして時は止まり　静寂が満ちてゆく",
 				"Soshite toki wa tomari seijaku ga michite yuku",
 				"And as time comes to a halt, silence starts to overflow"),
 
-			new LyricEntry(47.5f, 53.5f,
+			new LyricEntry(46.2f, 53.2f,
 				"私の叫びさえ　誰にも届かない",
 				"Watashi no sakebi sae dare ni mo todokanai",
 				"My cries are inconspicuous"),
 
-			new LyricEntry(54.0f, 60.5f,
-				"教えて神よ、私を罰しているのですか？",
-				"Oshiete kami yo, watashi o basshite iru no desu ka?",
-				"Tell me, God, are you punishing me?"),
+			new LyricEntry(53.5f, 60.5f,
+				"教えて神よ、なぜ？ 私を罰しているのですか？",
+				"Oshiete kami yo, naze? Watashi o basshite iru no desu ka?",
+				"Tell me, God, why? Are you punishing me?"),
 
 			new LyricEntry(61.0f, 67.5f,
 				"過去の過ちへの代償なのでしょうか",
@@ -65,7 +65,7 @@ namespace AutomataMusic.UI
 				"Kore wa watashi no shokuzai no uta",
 				"This is my redemption song"),
 
-			new LyricEntry(75.0f, 80.5f,
+			new LyricEntry(74.8f, 80.5f,
 				"今、あなたが必要… 私の声が聞こえますか？",
 				"Ima, anata ga hitsuyou... Watashi no koe ga kikoemasu ka?",
 				"I need you more than ever right now / Can you hear me now?"),
@@ -91,54 +91,53 @@ namespace AutomataMusic.UI
 				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
 				"But the truth is that I'm only one girl"),
 
-			// Interlude
-			new LyricEntry(120.0f, 127.5f,
+			new LyricEntry(108.5f, 116.0f,
 				"信じ続ければ、いつか夢は叶うのだろうか",
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(128.0f, 133.5f,
+			new LyricEntry(116.5f, 122.0f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
 
 			// Verse 2
-			new LyricEntry(134.0f, 140.0f,
+			new LyricEntry(134.0f, 139.8f,
 				"笑い声が消え去り、生命の痕跡は洗い流され",
 				"Waraigoe ga kiesari, inochi no konseki wa arainagasare",
 				"After all the laughter fades, signs of life all washed away"),
 
-			new LyricEntry(140.5f, 146.5f,
+			new LyricEntry(140.2f, 146.5f,
 				"それでもまだ、穏やかな風を感じることができる",
 				"Soredemo mada, odayakana kaze o kanjiru koto ga dekiru",
 				"I can still, still feel a gentle breeze"),
 
-			new LyricEntry(147.0f, 153.5f,
+			new LyricEntry(146.8f, 153.2f,
 				"どんなに熱心に祈ろうとも、警告の兆しは消えず",
 				"Donna ni nesshin ni inorou tomo, keikoku no kizashi wa kiezu",
 				"No matter how hard I pray, signs of warning still remain"),
 
-			new LyricEntry(154.0f, 160.5f,
+			new LyricEntry(153.5f, 160.5f,
 				"命そのものが私の敵となってしまった",
 				"Inochi sono mono ga watashi no teki to natte shimatta",
 				"And life has become my enemy"),
 
-			new LyricEntry(161.0f, 167.5f,
-				"教えて神よ、私を罰しているのですか？",
-				"Oshiete kami yo, watashi o basshite iru no desu ka?",
-				"Tell me, God, are you punishing me?"),
+			new LyricEntry(160.8f, 167.5f,
+				"教えて神よ、なぜ？ 私を罰しているのですか？",
+				"Oshiete kami yo, naze? Watashi o basshite iru no desu ka?",
+				"Tell me, God, why? Are you punishing me?"),
 
-			new LyricEntry(168.0f, 174.0f,
+			new LyricEntry(167.8f, 174.0f,
 				"過去の過ちへの代償なのでしょうか",
 				"Kako no ayamachi e no daishou na no deshou ka",
 				"Is this the price I'm paying for my past mistakes?"),
 
-			new LyricEntry(174.5f, 180.5f,
+			new LyricEntry(174.2f, 180.5f,
 				"これは私の贖罪の歌",
 				"Kore wa watashi no shokuzai no uta",
 				"This is my redemption song"),
 
-			new LyricEntry(181.0f, 187.5f,
+			new LyricEntry(180.8f, 187.8f,
 				"今、あなたが必要… 私の声が聞こえますか？",
 				"Ima, anata ga hitsuyou... Watashi no koe ga kikoemasu ka?",
 				"I need you more than ever right now / Can you hear me now?"),
@@ -170,7 +169,7 @@ namespace AutomataMusic.UI
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(222.0f, 227.5f,
+			new LyricEntry(222.5f, 227.5f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
@@ -255,9 +254,9 @@ namespace AutomataMusic.UI
 					float duration = entry.End - entry.Start;
 					float progress = elapsedSeconds - entry.Start;
 
-					// Smooth 0.5s fade in and 0.5s fade out
-					float inAlpha = MathHelper.Clamp(progress / 0.5f, 0f, 1f);
-					float outAlpha = MathHelper.Clamp((entry.End - elapsedSeconds) / 0.5f, 0f, 1f);
+					// Smooth 0.4s fade in and 0.4s fade out
+					float inAlpha = MathHelper.Clamp(progress / 0.4f, 0f, 1f);
+					float outAlpha = MathHelper.Clamp((entry.End - elapsedSeconds) / 0.4f, 0f, 1f);
 					lineAlpha = Math.Min(inAlpha, outAlpha) * alpha;
 					break;
 				}

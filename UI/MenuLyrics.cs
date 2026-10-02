@@ -31,39 +31,44 @@ namespace AutomataMusic.UI
 		{
 			// Verse 1 (Guitar solo intro ends at 27.2s)
 			new LyricEntry(27.2f, 33.8f,
-				"心の中で　希望を失いかけている",
-				"Kokoro no naka de kibou o ushinaikakete iru",
-				"I feel like I'm losing hope in my mind"),
+				"心と体の　希望さえ失いかけている",
+				"Kokoro to karada no kibou sae ushinaikakete iru",
+				"I feel like I'm losing hope in my body and my soul"),
 
 			new LyricEntry(34.0f, 39.8f,
-				"そして　時は止まる",
-				"Soshite toki wa tomaru",
-				"And as time comes to a halt"),
+				"見上げる空は　不吉な影を落とし",
+				"Miageru sora wa fukitsuna kage o otoshi",
+				"And the sky, it looks so ominous"),
 
 			new LyricEntry(40.0f, 47.0f,
+				"そして時は止まり　静寂が満ちてゆく",
+				"Soshite toki wa tomari seijaku ga michite yuku",
+				"And as time comes to a halt, silence starts to overflow"),
+
+			new LyricEntry(47.5f, 53.5f,
+				"私の叫びさえ　誰にも届かない",
+				"Watashi no sakebi sae dare ni mo todokanai",
+				"My cries are inconspicuous"),
+
+			new LyricEntry(54.0f, 60.5f,
 				"教えて神よ、私を罰しているのですか？",
 				"Oshiete kami yo, watashi o basshite iru no desu ka?",
 				"Tell me, God, are you punishing me?"),
 
-			new LyricEntry(47.5f, 54.0f,
+			new LyricEntry(61.0f, 67.5f,
 				"過去の過ちへの代償なのでしょうか",
 				"Kako no ayamachi e no daishou na no deshou ka",
 				"Is this the price I'm paying for my past mistakes?"),
 
-			new LyricEntry(54.5f, 61.0f,
+			new LyricEntry(68.0f, 74.5f,
 				"これは私の贖罪の歌",
 				"Kore wa watashi no shokuzai no uta",
 				"This is my redemption song"),
 
-			new LyricEntry(61.5f, 68.0f,
-				"今、誰よりもあなたを必要としている",
-				"Ima, dare yori mo anata o hitsuyou to shite iru",
-				"I need you more than ever right now"),
-
-			new LyricEntry(68.5f, 77.0f,
-				"今、私の声が聞こえますか？",
-				"Ima, watashi no koe ga kikoemasu ka?",
-				"Can you hear me now?"),
+			new LyricEntry(75.0f, 80.5f,
+				"今、あなたが必要… 私の声が聞こえますか？",
+				"Ima, anata ga hitsuyou... Watashi no koe ga kikoemasu ka?",
+				"I need you more than ever right now / Can you hear me now?"),
 
 			// Chorus 1
 			new LyricEntry(81.0f, 87.5f,
@@ -87,12 +92,12 @@ namespace AutomataMusic.UI
 				"But the truth is that I'm only one girl"),
 
 			// Interlude
-			new LyricEntry(120.0f, 128.0f,
+			new LyricEntry(120.0f, 127.5f,
 				"信じ続ければ、いつか夢は叶うのだろうか",
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(128.5f, 133.5f,
+			new LyricEntry(128.0f, 133.5f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
@@ -134,8 +139,8 @@ namespace AutomataMusic.UI
 				"This is my redemption song"),
 
 			new LyricEntry(181.0f, 187.5f,
-				"今、誰よりもあなたを必要としている",
-				"Ima, dare yori mo anata o hitsuyou to shite iru",
+				"今、あなたが必要… 私の声が聞こえますか？",
+				"Ima, anata ga hitsuyou... Watashi no koe ga kikoemasu ka?",
 				"I need you more than ever right now / Can you hear me now?"),
 
 			// Chorus 2

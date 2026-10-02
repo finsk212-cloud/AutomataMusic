@@ -1,6 +1,5 @@
 using System;
-using System.IO;
-using System.Reflection;
+using System.Diagnostics;
 using AutomataMusic.Common;
 using AutomataMusic.UI;
 using Microsoft.Xna.Framework;
@@ -12,82 +11,11 @@ namespace AutomataMusic
 {
 	public class AutomataModMenu : ModMenu
 	{
-		private static int songFrame = 0;
-		private static bool wasPlaying = false;
+		private static readonly Stopwatch songStopwatch = new Stopwatch();
 
 		public override string DisplayName => "Automata: Music (Weight of the World)";
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, "Assets/Music/WeightOfTheWorld", "Assets/Music/Menu", "Assets/Music/Title");
-
-		private static readonly FieldInfo mp3StreamField = typeof(MP3AudioTrack).GetField("_mp3Stream", BindingFlags.NonPublic | BindingFlags.Instance);
-		private static readonly FieldInfo baseStreamField = typeof(MP3AudioTrack).GetField("_stream", BindingFlags.NonPublic | BindingFlags.Instance);
-		private static PropertyInfo currentTimeProp = null;
-		private static PropertyInfo positionProp = null;
-		private static PropertyInfo lengthProp = null;
-		private static bool reflectionInitialized = false;
-
-		/// <summary>
-		/// Returns the real-time audio playback timestamp directly from the audio stream if available.
-		/// </summary>
-		public static float? GetAudioTimeSeconds(int musicId)
-		{
-			try
-			{
-				if (Terraria.Main.audioSystem is LegacyAudioSystem legacy && legacy.AudioTracks != null && musicId >= 0 && musicId < legacy.AudioTracks.Length)
-				{
-					var track = legacy.AudioTracks[musicId];
-					if (track == null || !track.IsPlaying)
-						return null;
-
-					if (track is MP3AudioTrack mp3 && mp3StreamField != null)
-					{
-						object streamObj = mp3StreamField.GetValue(mp3);
-						if (streamObj != null)
-						{
-							if (!reflectionInitialized)
-							{
-								reflectionInitialized = true;
-								var stType = streamObj.GetType();
-								currentTimeProp = stType.GetProperty("CurrentTime");
-								positionProp = stType.GetProperty("Position");
-								lengthProp = stType.GetProperty("Length");
-							}
-
-							// 1. Direct CurrentTime (TimeSpan)
-							if (currentTimeProp != null)
-							{
-								object val = currentTimeProp.GetValue(streamObj);
-								if (val is TimeSpan ts)
-									return (float)ts.TotalSeconds;
-							}
-
-							// 2. Position / Length ratio
-							if (positionProp != null && lengthProp != null)
-							{
-								object pVal = positionProp.GetValue(streamObj);
-								object lVal = lengthProp.GetValue(streamObj);
-								if (pVal is long pos && lVal is long len && len > 0)
-								{
-									return ((float)pos / len) * 344.607f;
-								}
-							}
-						}
-
-						// 3. Fallback: Base file stream Position / Length
-						if (baseStreamField != null)
-						{
-							if (baseStreamField.GetValue(mp3) is Stream s && s.Length > 0)
-							{
-								return ((float)s.Position / s.Length) * 344.607f;
-							}
-						}
-					}
-				}
-			}
-			catch { }
-
-			return null;
-		}
 
 		public static bool IsTrackActivelyPlaying(int musicId)
 		{
@@ -108,27 +36,31 @@ namespace AutomataMusic
 		{
 			if (!isOnTitleScreen)
 			{
-				songFrame = 0;
-				wasPlaying = false;
+				if (songStopwatch.IsRunning)
+					songStopwatch.Reset();
 				return;
 			}
 
 			bool isPlaying = IsTrackActivelyPlaying(Music);
 
-			// If the track just started playing, reset frame counter to 0 so we stay in sync
-			if (isPlaying && !wasPlaying)
-			{
-				songFrame = 0;
-			}
-			wasPlaying = isPlaying;
-
-			// Only advance frames when the audio is actually playing (does not drift while loading)
 			if (isPlaying)
 			{
-				songFrame++;
-				// Loop after 344.6s (20676 frames @ 60 FPS)
-				if (songFrame > 20676)
-					songFrame = 0;
+				if (!songStopwatch.IsRunning)
+				{
+					songStopwatch.Restart();
+				}
+				else if (songStopwatch.Elapsed.TotalSeconds > 344.607)
+				{
+					// Song finished and looped; restart stopwatch
+					songStopwatch.Restart();
+				}
+			}
+			else
+			{
+				if (songStopwatch.IsRunning)
+				{
+					songStopwatch.Reset();
+				}
 			}
 		}
 
@@ -137,13 +69,10 @@ namespace AutomataMusic
 			if (!AutomataMusicConfig.Instance.ShowMenuLyrics)
 				return;
 
-			// Don't show lyrics if menu music is not playing
-			if (!IsTrackActivelyPlaying(Music))
+			if (!IsTrackActivelyPlaying(Music) || !songStopwatch.IsRunning)
 				return;
 
-			// Try to get exact hardware audio position first; fallback to frame counter
-			float elapsedSeconds = GetAudioTimeSeconds(Music) ?? (songFrame / 60f);
-
+			float elapsedSeconds = (float)songStopwatch.Elapsed.TotalSeconds;
 			MenuLyrics.DrawLyrics(spriteBatch, elapsedSeconds, 1f);
 		}
 	}

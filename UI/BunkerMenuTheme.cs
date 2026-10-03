@@ -85,20 +85,20 @@ namespace AutomataMusic.UI
 				if (glitchIntensity < 0f) glitchIntensity = 0f;
 			}
 
-			// 1. Deep Space Base Canvas (#0c0c10)
-			sb.Draw(pixel, new Rectangle(0, 0, screenW, screenH), new Color(12, 12, 16));
+			// 1. Deep Space Base Canvas (#0a0a0e)
+			sb.Draw(pixel, new Rectangle(0, 0, screenW, screenH), new Color(10, 10, 14));
 
-			// 2. Planet Earth in Low Orbit as seen from the YoRHa Bunker
+			// 2. Planet Earth in Low Orbit (slightly darker moodier tint for perfect contrast)
 			if (earthTexture != null && earthTexture.IsLoaded && earthTexture.Value != null)
 			{
 				Texture2D earth = earthTexture.Value;
 				Rectangle earthDest = new Rectangle(0, 0, screenW, screenH);
-				sb.Draw(earth, earthDest, Color.White * 0.92f);
+				sb.Draw(earth, earthDest, new Color(205, 210, 220) * 0.82f);
 			}
 
 			// 3. Tactical Gridlines (54px spacing) with micro-crosshairs
-			Color gridColor = new Color(50, 52, 65) * 0.26f;
-			Color crosshairColor = new Color(195, 185, 155) * 0.35f;
+			Color gridColor = new Color(50, 52, 65) * 0.22f;
+			Color crosshairColor = new Color(195, 185, 155) * 0.30f;
 			int gridSize = 54;
 
 			for (int x = 0; x < screenW; x += gridSize)
@@ -152,13 +152,13 @@ namespace AutomataMusic.UI
 			// Sweeping radar / terminal refresh beam
 			scanLineY += 1.8f;
 			if (scanLineY > screenH) scanLineY = 0f;
-			sb.Draw(pixel, new Rectangle(0, (int)scanLineY, screenW, 2), new Color(210, 200, 170) * 0.10f);
+			sb.Draw(pixel, new Rectangle(0, (int)scanLineY, screenW, 2), new Color(210, 200, 170) * 0.09f);
 			sb.Draw(pixel, new Rectangle(0, (int)scanLineY - 8, screenW, 8), new Color(210, 200, 170) * 0.03f);
 
-			// 6. Tactical YoRHa Military HUD Framing (tight, pixel-perfect corner alignment)
+			// 6. Tactical YoRHa Military HUD Framing (clean, borderless corner alignment)
 			DrawTacticalFrame(sb, pixel, screenW, screenH, time);
 
-			// 7. NieR:Automata Stylized Title Card / Logo (without "Weight of the World")
+			// 7. NieR:Automata Stylized Title Card / Logo
 			DrawNierTitleCard(sb, pixel, screenW, logoDrawCenter);
 		}
 
@@ -202,7 +202,7 @@ namespace AutomataMusic.UI
 			if (font == null)
 				return;
 
-			// ── Top-Left Corner: Snug within the ┌ bracket ──
+			// ── Top-Left Corner: Snug within the ┌ bracket (clean, no harsh black box) ──
 			float textScale = 0.68f;
 			float subScale = 0.58f;
 			int padX = 14;
@@ -210,14 +210,9 @@ namespace AutomataMusic.UI
 
 			string tlHeader = "[ YoRHa SATELLITE ORBITAL BASE // \"THE BUNKER\" ]";
 			string tlSub = "SECURITY: LEVEL 4 // COMM-LINK: STABLE // OPERATOR: 6O";
-			Vector2 tlHeaderSize = font.MeasureString(tlHeader) * textScale;
 
-			// Subtle protective backing panel so HUD text is 100% legible against Earth
-			Rectangle tlPanel = new Rectangle(inset + padX - 4, inset + padY - 2, (int)tlHeaderSize.X + 8, 36);
-			sb.Draw(pixel, tlPanel, new Color(10, 10, 15) * 0.75f);
-
-			Utils.DrawBorderString(sb, tlHeader, new Vector2(inset + padX, inset + padY), new Color(242, 232, 208), textScale);
-			Utils.DrawBorderString(sb, tlSub, new Vector2(inset + padX, inset + padY + 18), new Color(175, 170, 155) * 0.85f, subScale);
+			Utils.DrawBorderString(sb, tlHeader, new Vector2(inset + padX, inset + padY), new Color(245, 236, 212), textScale);
+			Utils.DrawBorderString(sb, tlSub, new Vector2(inset + padX, inset + padY + 18), new Color(180, 175, 160) * 0.90f, subScale);
 
 			// ── Top-Right Corner: Snug within the ┐ bracket (Right-Aligned) ──
 			DateTime now = DateTime.Now;
@@ -225,28 +220,18 @@ namespace AutomataMusic.UI
 			string trSub = "FFCS: ONLINE // LINK QUALITY: 99.8% // STATUS: NOMINAL";
 			Vector2 trHeaderSize = font.MeasureString(trHeader) * textScale;
 			Vector2 trSubSize = font.MeasureString(trSub) * subScale;
-			float trMaxW = Math.Max(trHeaderSize.X, trSubSize.X);
 
-			Rectangle trPanel = new Rectangle((int)(screenW - inset - padX - trMaxW - 4), inset + padY - 2, (int)trMaxW + 8, 36);
-			sb.Draw(pixel, trPanel, new Color(10, 10, 15) * 0.75f);
+			Utils.DrawBorderString(sb, trHeader, new Vector2(screenW - inset - padX - trHeaderSize.X, inset + padY), new Color(240, 232, 210), textScale);
+			Utils.DrawBorderString(sb, trSub, new Vector2(screenW - inset - padX - trSubSize.X, inset + padY + 18), new Color(180, 175, 160) * 0.90f, subScale);
 
-			Utils.DrawBorderString(sb, trHeader, new Vector2(screenW - inset - padX - trHeaderSize.X, inset + padY), new Color(235, 226, 204), textScale);
-			Utils.DrawBorderString(sb, trSub, new Vector2(screenW - inset - padX - trSubSize.X, inset + padY + 18), new Color(175, 170, 155) * 0.85f, subScale);
-
-			// ── Bottom-Left Corner: Snug within the └ bracket ──
+			// ── Bottom-Left Corner: Snug within the └ bracket (clean, seamless over Earth) ──
 			string blHeader = "POD 042: STANDBY [NORMAL] // FFCS: ENGAGED";
 			string blSub = "PROGRAMS: LASER [ONLINE] // GATLING [ARMED] // SHIELD [READY]";
-			Vector2 blHeaderSize = font.MeasureString(blHeader) * textScale;
-			Vector2 blSubSize = font.MeasureString(blSub) * subScale;
-			float blMaxW = Math.Max(blHeaderSize.X, blSubSize.X);
 
-			Rectangle blPanel = new Rectangle(inset + padX - 4, screenH - inset - padY - 34, (int)blMaxW + 8, 36);
-			sb.Draw(pixel, blPanel, new Color(10, 10, 15) * 0.75f);
+			Utils.DrawBorderString(sb, blHeader, new Vector2(inset + padX, screenH - inset - padY - 30), new Color(242, 234, 212), textScale);
+			Utils.DrawBorderString(sb, blSub, new Vector2(inset + padX, screenH - inset - padY - 12), new Color(175, 170, 155) * 0.90f, subScale);
 
-			Utils.DrawBorderString(sb, blHeader, new Vector2(inset + padX, screenH - inset - padY - 32), new Color(238, 228, 204), textScale);
-			Utils.DrawBorderString(sb, blSub, new Vector2(inset + padX, screenH - inset - padY - 14), new Color(170, 165, 150) * 0.85f, subScale);
-
-			// ── Bottom-Right Corner: Snug within the ┘ bracket (Audio Equalizer) ──
+			// ── Bottom-Right Corner: Snug within the ┘ bracket (Slower, elegant audio wave) ──
 			DrawAudioVisualizer(sb, pixel, screenW - inset - padX, screenH - inset - padY, time);
 
 			// Left border altitude ruler
@@ -270,28 +255,24 @@ namespace AutomataMusic.UI
 			int startX = rightX - totalW;
 
 			string label = "AUDIO FREQUENCY // CH-01 [ACTIVE]";
-			Vector2 lSize = font != null ? font.MeasureString(label) * 0.58f : Vector2.Zero;
-			float blockW = Math.Max(totalW, lSize.X);
-
-			// Dark backing panel
-			Rectangle brPanel = new Rectangle((int)(rightX - blockW - 4), bottomY - 34, (int)blockW + 8, 36);
-			sb.Draw(pixel, brPanel, new Color(10, 10, 15) * 0.75f);
 
 			if (font != null)
 			{
-				Utils.DrawBorderString(sb, label, new Vector2(rightX - lSize.X, bottomY - 30), new Color(185, 175, 150) * 0.85f, 0.58f);
+				Vector2 lSize = font.MeasureString(label) * 0.58f;
+				Utils.DrawBorderString(sb, label, new Vector2(rightX - lSize.X, bottomY - 26), new Color(188, 178, 155) * 0.90f, 0.58f);
 			}
 
-			Color barColor = new Color(238, 222, 185) * 0.90f;
+			Color barColor = new Color(240, 226, 192) * 0.92f;
 			for (int b = 0; b < barCount; b++)
 			{
-				float wave = (float)Math.Sin(time * 6f + b * 0.85f) * 0.5f + 0.5f;
-				float wave2 = (float)Math.Cos(time * 3.5f - b * 0.45f) * 0.3f + 0.3f;
-				float hRatio = MathHelper.Clamp(wave * 0.7f + wave2 * 0.3f, 0.15f, 1f);
-				int barH = (int)(hRatio * 16f);
+				// Smooth, slowed-down gentle pulse wave
+				float wave = (float)Math.Sin(time * 1.5f + b * 0.45f) * 0.5f + 0.5f;
+				float wave2 = (float)Math.Cos(time * 0.9f - b * 0.30f) * 0.35f + 0.35f;
+				float hRatio = MathHelper.Clamp(wave * 0.65f + wave2 * 0.35f, 0.15f, 1f);
+				int barH = (int)(hRatio * 15f);
 
 				int bx = startX + b * (barW + barGap);
-				int by = bottomY - 4 - barH;
+				int by = bottomY - 2 - barH;
 				sb.Draw(pixel, new Rectangle(bx, by, barW, barH), barColor);
 			}
 		}

@@ -33,8 +33,8 @@ namespace AutomataMusic.UI
 		{
 			// Intro Title Card (2.0s - 20.0s during guitar intro)
 			new LyricEntry(2.0f, 20.0f,
-				"Song: Weight of the World",
-				"Song: Weight of the World",
+				"Weight of the World / 壊レタ世界ノ歌",
+				"Weight of the World / Kowareta Sekai no Uta",
 				"— from NieR:Automata —",
 				isTitleCard: true),
 
@@ -294,8 +294,8 @@ namespace AutomataMusic.UI
 			string topText = CheckCjkSupport(font) ? lyric.Japanese : lyric.Romaji;
 			string bottomText = lyric.English;
 
-			float topScale = lyric.IsTitleCard ? 0.90f : 0.88f;
-			float bottomScale = lyric.IsTitleCard ? 0.72f : 0.78f;
+			float topScale = lyric.IsTitleCard ? 0.82f : 0.88f;
+			float bottomScale = lyric.IsTitleCard ? 0.70f : 0.78f;
 
 			Vector2 topSize = font.MeasureString(topText) * topScale;
 			Vector2 bottomSize = font.MeasureString(bottomText) * bottomScale;

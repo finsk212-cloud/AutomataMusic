@@ -7,15 +7,15 @@ namespace AutomataMusic.SceneEffects.Bosses
 {
 	/// <summary>
 	/// Early game bosses: Eye of Cthulhu, King Slime, Eater of Worlds, Brain of Cthulhu, Skeletron, Deerclops.
-	/// Default track candidates: "BirthOfAWish" or "Boss1"
+	/// Default track candidates: "BirthOfAWish", "Boss1", falling back to "PossessedByDisease" or "AlienManifestation"
 	/// </summary>
 	public class EarlyBossSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/BirthOfAWish", "Assets/Music/Boss1" };
+		private static readonly string[] Tracks = { "Assets/Music/BirthOfAWish", "Assets/Music/Boss1", "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BossMedium;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -36,15 +36,15 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 	/// <summary>
 	/// Queen Bee boss theme.
-	/// Default track candidates: "ABeautifulSong" or "QueenBee"
+	/// Default track candidates: "ABeautifulSong", "QueenBee", falling back to "AlienManifestation" or "PossessedByDisease"
 	/// </summary>
 	public class QueenBeeSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/ABeautifulSong", "Assets/Music/QueenBee" };
+		private static readonly string[] Tracks = { "Assets/Music/ABeautifulSong", "Assets/Music/QueenBee", "Assets/Music/AlienManifestation", "Assets/Music/PossessedByDisease" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BossMedium;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -60,15 +60,15 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 	/// <summary>
 	/// Wall of Flesh boss theme.
-	/// Default track candidates: "GrandmaDestruction" or "WallOfFlesh"
+	/// Default track candidates: "GrandmaDestruction", "WallOfFlesh", falling back to "PossessedByDisease" or "AlienManifestation"
 	/// </summary>
 	public class WallOfFleshSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/GrandmaDestruction", "Assets/Music/WallOfFlesh" };
+		private static readonly string[] Tracks = { "Assets/Music/GrandmaDestruction", "Assets/Music/WallOfFlesh", "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BossMedium;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -84,15 +84,15 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 	/// <summary>
 	/// Mechanical bosses: The Destroyer, The Twins (Retinazer / Spazmatism), Skeletron Prime.
-	/// Default track candidates: "DependentWeakling", "WarAndWar", or "MechBoss"
+	/// Default track candidates: "DependentWeakling", "WarAndWar", "MechBoss", falling back to "PossessedByDisease" or "AlienManifestation"
 	/// </summary>
 	public class MechBossSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/DependentWeakling", "Assets/Music/WarAndWar", "Assets/Music/MechBoss" };
+		private static readonly string[] Tracks = { "Assets/Music/DependentWeakling", "Assets/Music/WarAndWar", "Assets/Music/MechBoss", "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BossMedium;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -119,7 +119,7 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BossMedium;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -143,7 +143,7 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BossMedium;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -162,11 +162,11 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 	/// <summary>
 	/// Moon Lord boss theme.
-	/// Default track candidates: "DarkColossusKaiju", "TheEndOfTheUnknown", "WeightOfTheWorld", or "MoonLord"
+	/// Default track candidates: "WeightOfTheWorld", "DarkColossusKaiju", "TheEndOfTheUnknown", "MoonLord"
 	/// </summary>
 	public class MoonLordSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/DarkColossusKaiju", "Assets/Music/TheEndOfTheUnknown", "Assets/Music/MoonLord" };
+		private static readonly string[] Tracks = { "Assets/Music/WeightOfTheWorld", "Assets/Music/DarkColossusKaiju", "Assets/Music/TheEndOfTheUnknown", "Assets/Music/MoonLord" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 

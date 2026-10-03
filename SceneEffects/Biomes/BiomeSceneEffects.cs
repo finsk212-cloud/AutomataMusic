@@ -1,3 +1,4 @@
+using System;
 using AutomataMusic.Common;
 using Terraria;
 using Terraria.ModLoader;
@@ -6,7 +7,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 {
 	/// <summary>
 	/// Forest / Surface Day theme.
-	/// Default track candidates: "CityRuins" or "SurfaceDay"
+	/// Default track candidates: "CityRuins", "RaysOfLight", "SurfaceDay"
 	/// </summary>
 	public class SurfaceDaySceneEffect : ModSceneEffect
 	{
@@ -14,7 +15,8 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeLow;
+		// High priority so vanilla Day, Alt Day, Morning, and low-priority biome ties never overwrite it
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -39,7 +41,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Forest / Surface Night theme.
-	/// Default track candidates: "VoiceOfNoReturn" or "SurfaceNight"
+	/// Default track candidates: "VoiceOfNoReturn", "SurfaceNight"
 	/// </summary>
 	public class SurfaceNightSceneEffect : ModSceneEffect
 	{
@@ -47,7 +49,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeLow;
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -71,8 +73,8 @@ namespace AutomataMusic.SceneEffects.Biomes
 	}
 
 	/// <summary>
-	/// Forest Town / Resistance Camp theme (when near 2+ NPCs in the forest).
-	/// Default track candidates: "PeacefulSleep", "ResistanceCamp", "TownDay", or "Town"
+	/// Forest Town / Resistance Camp theme (when near 1+ NPCs in the forest).
+	/// Default track candidates: "PeacefulSleep", "ResistanceCamp", "TownDay", "Town"
 	/// </summary>
 	public class SurfaceTownSceneEffect : ModSceneEffect
 	{
@@ -80,7 +82,8 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeMedium;
+		// Environment priority so it reliably overrides vanilla town music
+		public override SceneEffectPriority Priority => SceneEffectPriority.Environment;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -92,7 +95,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 				return false;
 
 			return player.ZoneOverworldHeight
-				&& player.townNPCs >= 2f
+				&& player.townNPCs >= 1f
 				&& !player.ZoneDesert
 				&& !player.ZoneSnow
 				&& !player.ZoneJungle
@@ -105,7 +108,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Forest Rain theme.
-	/// Default track candidates: "VagueHope", "VagueHopeColdRain", "ColdRain", "SurfaceRain", or "Rain"
+	/// Default track candidates: "VagueHope", "VagueHopeColdRain", "ColdRain", "SurfaceRain", "Rain"
 	/// </summary>
 	public class SurfaceRainSceneEffect : ModSceneEffect
 	{
@@ -113,7 +116,8 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+		// Environment priority to cleanly take precedence over vanilla rain
+		public override SceneEffectPriority Priority => SceneEffectPriority.Environment;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -146,7 +150,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeMedium;
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -159,7 +163,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 			return player.ZoneOverworldHeight
 				&& Main.dayTime
-				&& Main.IsItAHappyWindyDay
+				&& (Main.IsItAHappyWindyDay || Math.Abs(Main.windSpeedCurrent) >= 20f)
 				&& !player.ZoneDesert
 				&& !player.ZoneSnow
 				&& !player.ZoneJungle
@@ -172,7 +176,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Underground / Cavern theme.
-	/// Default track candidates: "AmusementPark", "CopiedCity", or "Underground"
+	/// Default track candidates: "AmusementPark", "CopiedCity", "Underground"
 	/// </summary>
 	public class UndergroundSceneEffect : ModSceneEffect
 	{
@@ -180,7 +184,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -204,15 +208,15 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Desert / Underground Desert theme.
-	/// Default track candidates: "MemoriesOfDust" or "Desert"
+	/// Default track candidates: "MemoriesOfDust", "Desert", with fallback to "CityRuins" or "AmusementPark"
 	/// </summary>
 	public class DesertSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/MemoriesOfDust", "Assets/Music/Desert" };
+		private static readonly string[] Tracks = { "Assets/Music/MemoriesOfDust", "Assets/Music/Desert", "Assets/Music/CityRuins", "Assets/Music/AmusementPark" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -229,15 +233,15 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Snow / Ice Biome theme.
-	/// Default track candidates: "KaineSalvation", "PeacefulSleep", or "Snow"
+	/// Default track candidates: "KaineSalvation", "VoiceOfNoReturn", "PeacefulSleep", "Snow"
 	/// </summary>
 	public class SnowSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/KaineSalvation", "Assets/Music/PeacefulSleep", "Assets/Music/Snow" };
+		private static readonly string[] Tracks = { "Assets/Music/KaineSalvation", "Assets/Music/VoiceOfNoReturn", "Assets/Music/PeacefulSleep", "Assets/Music/Snow" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -254,7 +258,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Jungle / Underground Jungle theme.
-	/// Default track candidates: "ForestKingdom", "Pascal", or "Jungle"
+	/// Default track candidates: "ForestKingdom", "Pascal", "Jungle"
 	/// </summary>
 	public class JungleSceneEffect : ModSceneEffect
 	{
@@ -262,7 +266,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -279,7 +283,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Crimson biome theme: Alien Manifestation.
-	/// Default track candidates: "AlienManifestation" or "Crimson"
+	/// Default track candidates: "AlienManifestation", "Crimson", "EvilBiome"
 	/// </summary>
 	public class CrimsonSceneEffect : ModSceneEffect
 	{
@@ -287,7 +291,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -304,15 +308,15 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Corruption biome theme: Possessed by Disease.
-	/// Default track candidates: "PossessedByDisease", "Corruption", or "WretchedWeaponry"
+	/// Default track candidates: "PossessedByDisease", "AlienManifestation", "Corruption", "EvilBiome"
 	/// </summary>
 	public class CorruptionSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/PossessedByDisease", "Assets/Music/Corruption", "Assets/Music/WretchedWeaponry", "Assets/Music/EvilBiome" };
+		private static readonly string[] Tracks = { "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation", "Assets/Music/Corruption", "Assets/Music/WretchedWeaponry", "Assets/Music/EvilBiome" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -329,15 +333,16 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Graveyard mini-biome theme.
-	/// Default track candidates: "WretchedWeaponry", "PossessedByDisease", or "AlienManifestation"
+	/// Default track candidates: "PossessedByDisease", "AlienManifestation", "VoiceOfNoReturn"
 	/// </summary>
 	public class GraveyardSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/WretchedWeaponry", "Assets/Music/EmilDespair", "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation", "Assets/Music/EvilBiome" };
+		private static readonly string[] Tracks = { "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation", "Assets/Music/VoiceOfNoReturn", "Assets/Music/WretchedWeaponry", "Assets/Music/EvilBiome" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeMedium;
+		// Environment priority so it overrides vanilla graveyard
+		public override SceneEffectPriority Priority => SceneEffectPriority.Environment;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -354,15 +359,15 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Underworld (Hell) theme.
-	/// Default track candidates: "TheSoundOfTheEnd" or "Underworld"
+	/// Default track candidates: "TheSoundOfTheEnd", "PossessedByDisease", "AlienManifestation", "Underworld"
 	/// </summary>
 	public class UnderworldSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/TheSoundOfTheEnd", "Assets/Music/Underworld" };
+		private static readonly string[] Tracks = { "Assets/Music/TheSoundOfTheEnd", "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation", "Assets/Music/Underworld" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -379,15 +384,15 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 	/// <summary>
 	/// Ocean / Beach theme.
-	/// Default track candidates: "TreasuredTimes" or "Ocean"
+	/// Default track candidates: "TreasuredTimes", "VagueHope", "PeacefulSleep", "Ocean"
 	/// </summary>
 	public class OceanSceneEffect : ModSceneEffect
 	{
-		private static readonly string[] Tracks = { "Assets/Music/TreasuredTimes", "Assets/Music/Ocean" };
+		private static readonly string[] Tracks = { "Assets/Music/TreasuredTimes", "Assets/Music/VagueHope", "Assets/Music/PeacefulSleep", "Assets/Music/Ocean" };
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.BiomeHigh;
+		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
 
 		public override bool IsSceneEffectActive(Player player)
 		{

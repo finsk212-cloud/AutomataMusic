@@ -8,6 +8,7 @@ using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Terraria;
 using Terraria.Audio;
+using Terraria.ID;
 using Terraria.ModLoader;
 
 namespace AutomataMusic.Common
@@ -181,6 +182,7 @@ namespace AutomataMusic.Common
 			Terraria.On_Main.DrawVersionNumber += Hook_DrawVersionNumber;
 			Terraria.On_Main.DrawSocialMediaButtons += Hook_DrawSocialMediaButtons;
 			Terraria.On_Main.DrawtModLoaderSocialMediaButtons += Hook_DrawtModLoaderSocialMediaButtons;
+			Terraria.On_Main.UpdateAudio += Hook_UpdateAudio;
 			checkedDefaultMenu = false;
 		}
 
@@ -190,10 +192,183 @@ namespace AutomataMusic.Common
 			Terraria.On_Main.DrawVersionNumber -= Hook_DrawVersionNumber;
 			Terraria.On_Main.DrawSocialMediaButtons -= Hook_DrawSocialMediaButtons;
 			Terraria.On_Main.DrawtModLoaderSocialMediaButtons -= Hook_DrawtModLoaderSocialMediaButtons;
+			Terraria.On_Main.UpdateAudio -= Hook_UpdateAudio;
 			songStopwatch.Reset();
 			hasStartedPlaying = false;
 			songTimeOffset = 0;
 			checkedDefaultMenu = false;
+		}
+
+		private static void Hook_UpdateAudio(Terraria.On_Main.orig_UpdateAudio orig, Main self)
+		{
+			orig(self);
+
+			// Only enforce when inside an active world/gameplay
+			if (Main.gameMenu)
+				return;
+
+			if (Main.myPlayer < 0 || Main.myPlayer >= Main.maxPlayers)
+				return;
+
+			Player player = Main.player[Main.myPlayer];
+			if (player == null || !player.active)
+				return;
+
+			int desiredTrack = GetDesiredInGameTrack(player);
+			if (desiredTrack > 0)
+			{
+				Main.newMusic = desiredTrack;
+			}
+		}
+
+		public static int GetDesiredInGameTrack(Player player)
+		{
+			var mod = ModContent.GetInstance<AutomataMusic>();
+			if (mod == null)
+				return 0;
+
+			var cfg = AutomataMusicConfig.Instance;
+			if (cfg == null)
+				return 0;
+
+			// 1. Boss Themes (Highest Priority)
+			if (cfg.ReplaceBossThemes)
+			{
+				if (NPC.AnyNPCs(NPCID.MoonLordCore))
+				{
+					int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/WeightOfTheWorld", "Assets/Music/DarkColossusKaiju", "Assets/Music/TheEndOfTheUnknown", "Assets/Music/MoonLord");
+					if (track > 0) return track;
+				}
+
+				if (NPC.AnyNPCs(NPCID.Plantera))
+				{
+					int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/AlienManifestation", "Assets/Music/Plantera");
+					if (track > 0) return track;
+				}
+
+				if (NPC.AnyNPCs(NPCID.Golem) || NPC.AnyNPCs(NPCID.DukeFishron) || NPC.AnyNPCs(NPCID.HallowBoss) || NPC.AnyNPCs(NPCID.CultistBoss))
+				{
+					int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/PossessedByDisease", "Assets/Music/LateBoss");
+					if (track > 0) return track;
+				}
+
+				if (NPC.AnyNPCs(NPCID.TheDestroyer) || NPC.AnyNPCs(NPCID.Retinazer) || NPC.AnyNPCs(NPCID.Spazmatism) || NPC.AnyNPCs(NPCID.SkeletronPrime)
+					|| NPC.AnyNPCs(NPCID.WallofFlesh) || NPC.AnyNPCs(NPCID.QueenBee) || NPC.AnyNPCs(NPCID.EyeofCthulhu)
+					|| NPC.AnyNPCs(NPCID.KingSlime) || NPC.AnyNPCs(NPCID.EaterofWorldsHead) || NPC.AnyNPCs(NPCID.BrainofCthulhu)
+					|| NPC.AnyNPCs(NPCID.SkeletronHead) || NPC.AnyNPCs(NPCID.Deerclops))
+				{
+					int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation", "Assets/Music/BirthOfAWish", "Assets/Music/Boss1");
+					if (track > 0) return track;
+				}
+			}
+
+			// 2. Biome & Environmental Themes
+			if (cfg.ReplaceBiomeThemes)
+			{
+				// Underworld (Hell)
+				if (cfg.ReplaceUnderworldThemes && player.ZoneUnderworldHeight)
+				{
+					int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/TheSoundOfTheEnd", "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation");
+					if (track > 0) return track;
+				}
+
+				// Evil Biomes: Crimson / Corruption / Graveyard
+				if (cfg.ReplaceEvilBiomeThemes)
+				{
+					if (player.ZoneCrimson)
+					{
+						int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/AlienManifestation", "Assets/Music/Crimson");
+						if (track > 0) return track;
+					}
+					if (player.ZoneCorrupt)
+					{
+						int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation", "Assets/Music/Corruption");
+						if (track > 0) return track;
+					}
+					if (player.ZoneGraveyard)
+					{
+						int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation", "Assets/Music/VoiceOfNoReturn");
+						if (track > 0) return track;
+					}
+				}
+
+				// Jungle
+				if (cfg.ReplaceJungleThemes && player.ZoneJungle)
+				{
+					int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/ForestKingdom", "Assets/Music/Pascal", "Assets/Music/Jungle");
+					if (track > 0) return track;
+				}
+
+				// Desert
+				if (cfg.ReplaceDesertThemes && (player.ZoneDesert || player.ZoneUndergroundDesert))
+				{
+					int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/MemoriesOfDust", "Assets/Music/CityRuins", "Assets/Music/AmusementPark", "Assets/Music/Desert");
+					if (track > 0) return track;
+				}
+
+				// Snow / Ice
+				if (cfg.ReplaceSnowThemes && player.ZoneSnow)
+				{
+					int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/KaineSalvation", "Assets/Music/VoiceOfNoReturn", "Assets/Music/PeacefulSleep", "Assets/Music/Snow");
+					if (track > 0) return track;
+				}
+
+				// Ocean
+				if (cfg.ReplaceOceanThemes && player.ZoneBeach)
+				{
+					int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/TreasuredTimes", "Assets/Music/VagueHope", "Assets/Music/PeacefulSleep", "Assets/Music/Ocean");
+					if (track > 0) return track;
+				}
+
+				// Underground / Cavern
+				if (cfg.ReplaceUndergroundThemes && (player.ZoneDirtLayerHeight || player.ZoneRockLayerHeight))
+				{
+					int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/AmusementPark", "Assets/Music/CopiedCity", "Assets/Music/Underground");
+					if (track > 0) return track;
+				}
+
+				// Surface Events & Themes
+				if (player.ZoneOverworldHeight)
+				{
+					// Town / Resistance Camp (near NPCs)
+					if (cfg.ReplaceTownThemes && player.townNPCs >= 1f)
+					{
+						int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/PeacefulSleep", "Assets/Music/ResistanceCamp", "Assets/Music/TownDay", "Assets/Music/Town");
+						if (track > 0) return track;
+					}
+
+					// Rain
+					if (cfg.ReplaceRainThemes && Main.raining)
+					{
+						int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/VagueHope", "Assets/Music/ColdRain", "Assets/Music/SurfaceRain");
+						if (track > 0) return track;
+					}
+
+					// Windy Day
+					if (cfg.ReplaceWindyThemes && Main.dayTime && (Main.IsItAHappyWindyDay || Math.Abs(Main.windSpeedCurrent) >= 20f))
+					{
+						int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/ForestKingdom", "Assets/Music/WindyDay");
+						if (track > 0) return track;
+					}
+
+					// Surface Day / Night
+					if (cfg.ReplaceSurfaceThemes)
+					{
+						if (Main.dayTime)
+						{
+							int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/CityRuins", "Assets/Music/RaysOfLight", "Assets/Music/SurfaceDay");
+							if (track > 0) return track;
+						}
+						else
+						{
+							int track = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/VoiceOfNoReturn", "Assets/Music/SurfaceNight");
+							if (track > 0) return track;
+						}
+					}
+				}
+			}
+
+			return 0;
 		}
 
 		private static void Hook_DrawVersionNumber(Terraria.On_Main.orig_DrawVersionNumber orig, Color menuColor, float upBump)

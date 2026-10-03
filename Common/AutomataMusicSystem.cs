@@ -178,16 +178,52 @@ namespace AutomataMusic.Common
 		public override void Load()
 		{
 			Main.OnPostDraw += OnPostDrawHandler;
+			Terraria.On_Main.DrawVersionNumber += Hook_DrawVersionNumber;
+			Terraria.On_Main.DrawSocialMediaButtons += Hook_DrawSocialMediaButtons;
+			Terraria.On_Main.DrawtModLoaderSocialMediaButtons += Hook_DrawtModLoaderSocialMediaButtons;
 			checkedDefaultMenu = false;
 		}
 
 		public override void Unload()
 		{
 			Main.OnPostDraw -= OnPostDrawHandler;
+			Terraria.On_Main.DrawVersionNumber -= Hook_DrawVersionNumber;
+			Terraria.On_Main.DrawSocialMediaButtons -= Hook_DrawSocialMediaButtons;
+			Terraria.On_Main.DrawtModLoaderSocialMediaButtons -= Hook_DrawtModLoaderSocialMediaButtons;
 			songStopwatch.Reset();
 			hasStartedPlaying = false;
 			songTimeOffset = 0;
 			checkedDefaultMenu = false;
+		}
+
+		private static void Hook_DrawVersionNumber(Terraria.On_Main.orig_DrawVersionNumber orig, Color menuColor, float upBump)
+		{
+			if (MenuLoader.CurrentMenu is AutomataModMenu && (AutomataMusicConfig.Instance?.BunkerMenuTheme ?? true))
+			{
+				return; // Suppress corner white version and news text
+			}
+
+			orig(menuColor, upBump);
+		}
+
+		private static void Hook_DrawSocialMediaButtons(Terraria.On_Main.orig_DrawSocialMediaButtons orig, Color menuColor, float upBump)
+		{
+			if (MenuLoader.CurrentMenu is AutomataModMenu && (AutomataMusicConfig.Instance?.BunkerMenuTheme ?? true))
+			{
+				return;
+			}
+
+			orig(menuColor, upBump);
+		}
+
+		private static void Hook_DrawtModLoaderSocialMediaButtons(Terraria.On_Main.orig_DrawtModLoaderSocialMediaButtons orig, Color menuColor, float upBump)
+		{
+			if (MenuLoader.CurrentMenu is AutomataModMenu && (AutomataMusicConfig.Instance?.BunkerMenuTheme ?? true))
+			{
+				return;
+			}
+
+			orig(menuColor, upBump);
 		}
 
 		private void OnPostDrawHandler(GameTime gameTime)

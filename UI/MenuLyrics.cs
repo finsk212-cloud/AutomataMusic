@@ -14,14 +14,16 @@ namespace AutomataMusic.UI
 		public string Japanese;
 		public string Romaji;
 		public string English;
+		public bool IsTitleCard;
 
-		public LyricEntry(float start, float end, string japanese, string romaji, string english)
+		public LyricEntry(float start, float end, string japanese, string romaji, string english, bool isTitleCard = false)
 		{
 			Start = start;
 			End = end;
 			Japanese = japanese;
 			Romaji = romaji;
-			English = $"({english})";
+			English = isTitleCard ? english : $"({english})";
+			IsTitleCard = isTitleCard;
 		}
 	}
 
@@ -29,6 +31,13 @@ namespace AutomataMusic.UI
 	{
 		public static readonly LyricEntry[] Lyrics = new LyricEntry[]
 		{
+			// Intro Title Card (1.5s - 25.5s during guitar intro)
+			new LyricEntry(1.5f, 25.5f,
+				"Weight of the World / 壊レタ世界ノ歌",
+				"Weight of the World / Kowareta Sekai no Uta",
+				"— from NieR:Automata —",
+				isTitleCard: true),
+
 			// Verse 1 (Guitar solo intro ends at 27.2s)
 			new LyricEntry(27.2f, 33.8f,
 				"心と体の　希望さえ失いかけている",
@@ -258,12 +267,19 @@ namespace AutomataMusic.UI
 				if (elapsedSeconds >= entry.Start && elapsedSeconds <= entry.End)
 				{
 					active = entry;
-					float duration = entry.End - entry.Start;
 					float progress = elapsedSeconds - entry.Start;
+					float remaining = entry.End - elapsedSeconds;
 
-					// Smooth 0.35s fade in and 0.35s fade out
-					float inAlpha = MathHelper.Clamp(progress / 0.35f, 0f, 1f);
-					float outAlpha = MathHelper.Clamp((entry.End - elapsedSeconds) / 0.35f, 0f, 1f);
+					// Smooth easing fade in / fade out (extended for title card, snappy for lyrics)
+					float fadeInTime = entry.IsTitleCard ? 1.4f : 0.35f;
+					float fadeOutTime = entry.IsTitleCard ? 1.8f : 0.35f;
+
+					float inAlpha = MathHelper.Clamp(progress / fadeInTime, 0f, 1f);
+					inAlpha = MathHelper.SmoothStep(0f, 1f, inAlpha);
+
+					float outAlpha = MathHelper.Clamp(remaining / fadeOutTime, 0f, 1f);
+					outAlpha = MathHelper.SmoothStep(0f, 1f, outAlpha);
+
 					lineAlpha = Math.Min(inAlpha, outAlpha) * alpha;
 					break;
 				}
@@ -278,8 +294,8 @@ namespace AutomataMusic.UI
 			string topText = CheckCjkSupport(font) ? lyric.Japanese : lyric.Romaji;
 			string bottomText = lyric.English;
 
-			float topScale = 0.88f;
-			float bottomScale = 0.78f;
+			float topScale = lyric.IsTitleCard ? 0.90f : 0.88f;
+			float bottomScale = lyric.IsTitleCard ? 0.72f : 0.78f;
 
 			Vector2 topSize = font.MeasureString(topText) * topScale;
 			Vector2 bottomSize = font.MeasureString(bottomText) * bottomScale;
@@ -288,31 +304,64 @@ namespace AutomataMusic.UI
 			float centerX = Main.screenWidth / 2f;
 
 			// Position below the main buttons, near the bottom of the screen
-			float posY = Main.screenHeight - 82f;
+			float posY = Main.screenHeight - 84f;
 
-			// Clean seamless NieR HUD panel backing (no sliced seams/bars)
 			Texture2D pixel = TextureAssets.MagicPixel.Value;
-			float bannerW = maxWidth + 70f;
-			float bannerH = 50f;
+			float bannerW = maxWidth + (lyric.IsTitleCard ? 92f : 78f);
+			float bannerH = lyric.IsTitleCard ? 52f : 48f;
 			Rectangle bannerRect = new Rectangle((int)(centerX - bannerW / 2f), (int)posY - 4, (int)bannerW, (int)bannerH);
 
-			// Solid translucent slate background
-			sb.Draw(pixel, bannerRect, new Color(12, 12, 16) * (0.82f * lineAlpha));
+			// 1. Soft subtle dark drop shadow
+			Rectangle shadowRect = new Rectangle(bannerRect.X - 3, bannerRect.Y - 3, bannerRect.Width + 6, bannerRect.Height + 6);
+			sb.Draw(pixel, shadowRect, Color.Black * (0.35f * lineAlpha));
 
-			// Fine NieR beige border
-			Color borderColor = new Color(185, 175, 150) * (0.45f * lineAlpha);
+			// 2. Solid translucent dark charcoal slate background
+			sb.Draw(pixel, bannerRect, new Color(13, 13, 17) * (0.86f * lineAlpha));
+
+			// 3. Fine NieR beige frame border
+			Color borderColor = new Color(185, 175, 150) * (0.35f * lineAlpha);
 			sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, bannerRect.Width, 1), borderColor);
 			sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - 1, bannerRect.Width, 1), borderColor);
 			sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, 1, bannerRect.Height), borderColor);
 			sb.Draw(pixel, new Rectangle(bannerRect.Right - 1, bannerRect.Y, 1, bannerRect.Height), borderColor);
 
-			// Line 1: Japanese / Romaji (Warm glowing NieR beige)
-			Vector2 topPos = new Vector2(centerX - topSize.X / 2f, posY);
-			Utils.DrawBorderString(sb, topText, topPos, new Color(235, 222, 192) * lineAlpha, topScale);
+			// 4. Authentic NieR HUD Corner Brackets (┌ ┐ └ ┘)
+			Color bracketColor = new Color(235, 222, 190) * (0.85f * lineAlpha);
+			int arm = 8;
+			int thick = 2;
 
-			// Line 2: English in parentheses (Soft silver)
-			Vector2 bottomPos = new Vector2(centerX - bottomSize.X / 2f, posY + 22f);
-			Utils.DrawBorderString(sb, bottomText, bottomPos, new Color(190, 190, 195) * (lineAlpha * 0.9f), bottomScale);
+			// Top-Left ┌
+			sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, arm, thick), bracketColor);
+			sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, thick, arm), bracketColor);
+
+			// Top-Right ┐
+			sb.Draw(pixel, new Rectangle(bannerRect.Right - arm, bannerRect.Y, arm, thick), bracketColor);
+			sb.Draw(pixel, new Rectangle(bannerRect.Right - thick, bannerRect.Y, thick, arm), bracketColor);
+
+			// Bottom-Left └
+			sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - thick, arm, thick), bracketColor);
+			sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - arm, thick, arm), bracketColor);
+
+			// Bottom-Right ┘
+			sb.Draw(pixel, new Rectangle(bannerRect.Right - arm, bannerRect.Bottom - thick, arm, thick), bracketColor);
+			sb.Draw(pixel, new Rectangle(bannerRect.Right - thick, bannerRect.Bottom - arm, thick, arm), bracketColor);
+
+			// 5. Decorative center edge notches
+			int midY = bannerRect.Y + bannerRect.Height / 2;
+			sb.Draw(pixel, new Rectangle(bannerRect.X - 1, midY - 2, 3, 5), bracketColor * 0.65f);
+			sb.Draw(pixel, new Rectangle(bannerRect.Right - 2, midY - 2, 3, 5), bracketColor * 0.65f);
+
+			// 6. Typography rendering
+			Color topColor = lyric.IsTitleCard ? new Color(248, 238, 212) * lineAlpha : new Color(238, 226, 198) * lineAlpha;
+			Color bottomColor = lyric.IsTitleCard ? new Color(185, 180, 165) * (lineAlpha * 0.90f) : new Color(192, 192, 198) * (lineAlpha * 0.90f);
+
+			// Line 1: Japanese / Romaji or Song Title
+			Vector2 topPos = new Vector2(centerX - topSize.X / 2f, lyric.IsTitleCard ? posY - 1f : posY);
+			Utils.DrawBorderString(sb, topText, topPos, topColor, topScale);
+
+			// Line 2: English translation or Game Subtitle
+			Vector2 bottomPos = new Vector2(centerX - bottomSize.X / 2f, lyric.IsTitleCard ? posY + 23f : posY + 22f);
+			Utils.DrawBorderString(sb, bottomText, bottomPos, bottomColor, bottomScale);
 		}
 	}
 }

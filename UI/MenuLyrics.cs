@@ -31,10 +31,10 @@ namespace AutomataMusic.UI
 	{
 		public static readonly LyricEntry[] Lyrics = new LyricEntry[]
 		{
-			// Intro Title Card (1.5s - 25.5s during guitar intro)
-			new LyricEntry(1.5f, 25.5f,
-				"Song: Weight of the World / 壊レタ世界ノ歌",
-				"Song: Weight of the World / Kowareta Sekai no Uta",
+			// Intro Title Card (2.0s - 20.0s during guitar intro)
+			new LyricEntry(2.0f, 20.0f,
+				"Song: Weight of the World",
+				"Song: Weight of the World",
 				"— from NieR:Automata —",
 				isTitleCard: true),
 

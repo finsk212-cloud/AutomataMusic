@@ -246,13 +246,14 @@ namespace AutomataMusic.UI
 					_ => new Color(225, 232, 250)
 				};
 
-				float speed = 0.0009f * size;
+				// Ever-so-slight drift: roughly 0.2–0.6 px/sec at 1080p
+				float speed = 0.00011f * size;
 				stars[i] = new Star
 				{
 					Pos = pos,
 					Drift = new Vector2(speed, -speed * 0.25f),
 					BaseAlpha = baseAlpha,
-					TwinkleSpeed = 0.8f + (float)rand.NextDouble() * 2.6f,
+					TwinkleSpeed = 0.25f + (float)rand.NextDouble() * 0.6f,
 					Phase = (float)rand.NextDouble() * MathHelper.TwoPi,
 					Phase2 = (float)rand.NextDouble() * MathHelper.TwoPi,
 					Size = size,
@@ -655,21 +656,31 @@ namespace AutomataMusic.UI
 
 				float w1 = (float)Math.Sin(totalTime * s.TwinkleSpeed + s.Phase);
 				float w2 = (float)Math.Sin(totalTime * s.TwinkleSpeed * 1.618f + s.Phase2);
-				float shimmer = (float)Math.Pow((w1 * 0.65f + w2 * 0.35f + 1f) * 0.5f, 1.6);
-				float alpha = MathHelper.Clamp(s.BaseAlpha * (0.25f + 0.9f * shimmer), 0f, 1f);
+				float shimmer = (w1 * 0.65f + w2 * 0.35f) * 0.5f + 0.5f; // [0,1], smooth
+				// Super subtle: brightness only breathes by about ±8%
+				float alpha = MathHelper.Clamp(s.BaseAlpha * (0.92f + 0.16f * (shimmer - 0.5f)), 0f, 1f);
 
 				int sz = s.Size;
-				sb.Draw(pixel, new Rectangle((int)sx, (int)sy, sz, sz), src, s.Col * alpha);
 
-				if (s.Size >= 2 && shimmer > 0.55f)
-					sb.Draw(pixel, new Rectangle((int)sx - 1, (int)sy - 1, sz + 2, sz + 2), src, s.Col * (alpha * (shimmer - 0.55f) * 0.5f));
+				// Sub-pixel rendering: split brightness across the 4 neighbouring pixels so the
+				// ultra-slow drift glides smoothly instead of snapping 1px at a time.
+				int ix = (int)Math.Floor(sx), iy = (int)Math.Floor(sy);
+				float fx = sx - ix, fy = sy - iy;
+				Color c = s.Col * alpha;
+				sb.Draw(pixel, new Rectangle(ix, iy, sz, sz), src, c * ((1f - fx) * (1f - fy)));
+				sb.Draw(pixel, new Rectangle(ix + 1, iy, sz, sz), src, c * (fx * (1f - fy)));
+				sb.Draw(pixel, new Rectangle(ix, iy + 1, sz, sz), src, c * ((1f - fx) * fy));
+				sb.Draw(pixel, new Rectangle(ix + 1, iy + 1, sz, sz), src, c * (fx * fy));
+
+				if (s.Size >= 2)
+					sb.Draw(pixel, new Rectangle(ix - 1, iy - 1, sz + 2, sz + 2), src, s.Col * (alpha * 0.10f));
 
 				if (s.Spikes)
 				{
-					float spike = alpha * 0.35f * shimmer;
-					int len = 5 + (int)(shimmer * 5f);
-					sb.Draw(pixel, new Rectangle((int)sx - len, (int)sy + sz / 2, len * 2 + sz, 1), src, s.Col * spike);
-					sb.Draw(pixel, new Rectangle((int)sx + sz / 2, (int)sy - len, 1, len * 2 + sz), src, s.Col * spike);
+					float spike = alpha * 0.18f;
+					const int len = 6;
+					sb.Draw(pixel, new Rectangle(ix - len, iy + sz / 2, len * 2 + sz, 1), src, s.Col * spike);
+					sb.Draw(pixel, new Rectangle(ix + sz / 2, iy - len, 1, len * 2 + sz), src, s.Col * spike);
 				}
 			}
 		}

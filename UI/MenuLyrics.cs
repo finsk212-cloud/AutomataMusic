@@ -198,9 +198,9 @@ namespace AutomataMusic.UI
 
 			// Climax (Choir & full orchestra)
 			new LyricEntry(282.5f, 289.0f,
-				"意味などないとしても、大声で叫び続ける",
-				"Imi nado nai to shite mo, oogoe de sakebitsuzukeru",
-				"'Cause we're gonna shout it loud, even if our words seem meaningless"),
+				"それでも、大声で叫び続ける",
+				"Soredemo, oogoe de sakebitsuzukeru",
+				"Still, we're gonna shout it loud, even if our words seem meaningless"),
 
 			new LyricEntry(289.5f, 296.0f,
 				"世界の重荷を背負っているかのように",

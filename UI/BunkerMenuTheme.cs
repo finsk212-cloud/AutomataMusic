@@ -1,13 +1,10 @@
 using System;
-using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using ReLogic.Content;
 using ReLogic.Graphics;
 using Terraria;
-using Terraria.Audio;
 using Terraria.GameContent;
-using Terraria.ID;
 using Terraria.ModLoader;
 
 namespace AutomataMusic.UI
@@ -33,51 +30,19 @@ namespace AutomataMusic.UI
 			public float Size;
 		}
 
-		private struct AlienDrop
-		{
-			public Vector2 Start;
-			public Vector2 Current;
-			public Vector2 Target;
-			public float Progress;
-			public float Speed;
-			public float TrailLength;
-			public float ImpactTimer;
-			public bool Active;
-		}
-
 		// Textures
 		private static Asset<Texture2D> earthTexture = null;
 		private static Asset<Texture2D> bunkerTexture = null;
-		private static Asset<Texture2D> moonTexture = null;
-		private static Asset<Texture2D> flightUnitTexture = null;
-		private static Asset<Texture2D> emilTexture = null;
 
-		// Systems & Particles
-		private static readonly Particle[] particles = new Particle[36];
-		private static readonly Star[] stars = new Star[60];
-		private static readonly AlienDrop[] alienDrops = new AlienDrop[4];
+		// Systems
+		private static readonly Particle[] particles = new Particle[32];
+		private static readonly Star[] stars = new Star[70];
 		private static bool initialized = false;
 
-		// Dynamics & FX
+		// FX
 		private static float scanLineY = 0f;
 		private static float glitchTimer = 0f;
 		private static float glitchIntensity = 0f;
-		private static float alienSpawnTimer = 0f;
-		private static string alienWarningText = "";
-		private static float alienWarningTimer = 0f;
-
-		// YoRHa Flight Unit Patrol
-		private static float flightUnitProgress = -0.5f;
-		private static float flightUnitTimer = 0f;
-
-		// Easter Egg State
-		private static string podDialogTitle = "";
-		private static string podDialogText = "";
-		private static float podDialogTimer = 0f;
-		private static int easterEggClicks = 0;
-		private static float emilFlyProgress = -1f;
-		private static float emilFlyY = 200f;
-		private static bool wasMouseDown = false;
 
 		private static void InitializeSystems()
 		{
@@ -97,14 +62,14 @@ namespace AutomataMusic.UI
 				};
 			}
 
-			// Background twinkling stars
+			// Subtle twinkling stars
 			for (int i = 0; i < stars.Length; i++)
 			{
 				stars[i] = new Star
 				{
 					Position = new Vector2((float)rand.NextDouble() * 1920f, (float)rand.NextDouble() * 1080f),
-					BaseAlpha = 0.25f + (float)rand.NextDouble() * 0.60f,
-					TwinkleSpeed = 1.5f + (float)rand.NextDouble() * 3.5f,
+					BaseAlpha = 0.20f + (float)rand.NextDouble() * 0.55f,
+					TwinkleSpeed = 1.2f + (float)rand.NextDouble() * 2.8f,
 					Phase = (float)rand.NextDouble() * MathHelper.TwoPi,
 					Size = (rand.NextDouble() > 0.85) ? 2f : 1f
 				};
@@ -121,12 +86,6 @@ namespace AutomataMusic.UI
 					earthTexture = ModContent.Request<Texture2D>("AutomataMusic/Assets/Textures/Earth", AssetRequestMode.ImmediateLoad);
 				if (bunkerTexture == null)
 					bunkerTexture = ModContent.Request<Texture2D>("AutomataMusic/Assets/Textures/Bunker", AssetRequestMode.ImmediateLoad);
-				if (moonTexture == null)
-					moonTexture = ModContent.Request<Texture2D>("AutomataMusic/Assets/Textures/Moon", AssetRequestMode.ImmediateLoad);
-				if (flightUnitTexture == null)
-					flightUnitTexture = ModContent.Request<Texture2D>("AutomataMusic/Assets/Textures/FlightUnit", AssetRequestMode.ImmediateLoad);
-				if (emilTexture == null)
-					emilTexture = ModContent.Request<Texture2D>("AutomataMusic/Assets/Textures/Emil", AssetRequestMode.ImmediateLoad);
 			}
 			catch
 			{
@@ -150,9 +109,6 @@ namespace AutomataMusic.UI
 			int screenH = Main.screenHeight;
 			float time = (float)Main.timeForVisualEffects * 0.02f;
 
-			// Handle Mouse Easter Eggs & Interactions
-			HandleInteractions(screenW, screenH);
-
 			// Update glitch / terminal jitter timer
 			glitchTimer += 0.016f;
 			if (glitchTimer > 5.5f)
@@ -166,46 +122,31 @@ namespace AutomataMusic.UI
 				if (glitchIntensity < 0f) glitchIntensity = 0f;
 			}
 
-			// 1. Deep Space Base Canvas (#08080c)
-			sb.Draw(pixel, new Rectangle(0, 0, screenW, screenH), new Color(8, 8, 12));
+			// 1. Deep Space Base Canvas (#07070a)
+			sb.Draw(pixel, new Rectangle(0, 0, screenW, screenH), new Color(7, 7, 10));
 
-			// 2. Twinkling Deep Space Stars
+			// 2. Twinkling Background Stars (Serene, deep space feel)
 			DrawStars(sb, pixel, time, screenW, screenH);
 
-			// 3. Distant Moving Moon (Humanity Server)
-			DrawMovingMoon(sb, pixel, time, screenW, screenH);
+			// 3. Planet Earth in Orbit (Not too close! Positioned in lower portion showing curvature & atmosphere)
+			DrawEarth(sb, pixel, time, screenW, screenH);
 
-			// 4. Moving Planet Earth in Low Orbit (Smooth orbital pan / drift)
-			DrawMovingEarth(sb, pixel, time, screenW, screenH);
-
-			// 5. Alien Dropships Landing on Earth (Fiery atmospheric re-entry streaks)
-			UpdateAndDrawAlienDrops(sb, pixel, screenW, screenH);
-
-			// 6. Tactical Gridlines (54px spacing) with micro-crosshairs
+			// 4. Tactical Gridlines (54px spacing) with micro-crosshairs
 			DrawTacticalGrid(sb, pixel, screenW, screenH);
 
-			// 7. The Bunker (YoRHa 13th Orbital Base) & Escort Flight Units
+			// 5. The Bunker Spaceship (Hovering & Smoothly Rotating around its center)
 			DrawYoRHaBunker(sb, pixel, time, screenW, screenH);
 
-			// 8. YoRHa Flight Unit Patrol (Periodic orbital pass)
-			DrawFlightUnitPatrol(sb, pixel, screenW, screenH);
-
-			// 9. Secret Easter Egg Flyby (Emil's Head)
-			DrawEmilEasterEgg(sb, screenW, screenH);
-
-			// 10. Floating Digital Atmospheric Dust / Embers drifting upward
+			// 6. Floating Digital Atmospheric Dust / Embers drifting upward
 			DrawEmbers(sb, pixel, time, screenW, screenH);
 
-			// 11. Subtle CRT Scanlines & Radar Sweep
+			// 7. Subtle CRT Scanlines & Radar Sweep
 			DrawScanlinesAndRadar(sb, pixel, screenW, screenH);
 
-			// 12. Interactive Pod 042 Tactical Log Pop-up
-			DrawPodDialog(sb, pixel, screenW, screenH);
-
-			// 13. Tactical YoRHa Military HUD Framing (clean corner alignment)
+			// 8. Tactical YoRHa Military HUD Framing (Unchanged, clean corner alignment)
 			DrawTacticalFrame(sb, pixel, screenW, screenH, time);
 
-			// 14. NieR:Automata Stylized Title Card / Logo
+			// 9. NieR:Automata Stylized Title Card / Logo
 			DrawNierTitleCard(sb, pixel, screenW, logoDrawCenter);
 		}
 
@@ -223,174 +164,30 @@ namespace AutomataMusic.UI
 			}
 		}
 
-		private static void DrawMovingMoon(SpriteBatch sb, Texture2D pixel, float time, int screenW, int screenH)
-		{
-			if (moonTexture == null || !moonTexture.IsLoaded || moonTexture.Value == null)
-				return;
-
-			Texture2D moon = moonTexture.Value;
-			var font = FontAssets.MouseText.Value;
-
-			// Distant Moon orbits gently in the upper right space quadrant
-			float moonBaseX = screenW * 0.80f;
-			float moonBaseY = screenH * 0.22f;
-			float moonDriftX = (float)Math.Sin(time * 0.15f) * 35f;
-			float moonDriftY = (float)Math.Cos(time * 0.12f) * 14f;
-			Vector2 moonPos = new Vector2(moonBaseX + moonDriftX, moonBaseY + moonDriftY);
-
-			int moonSize = Math.Max(56, (int)(screenW * 0.052f));
-			Rectangle moonRect = new Rectangle((int)(moonPos.X - moonSize / 2f), (int)(moonPos.Y - moonSize / 2f), moonSize, moonSize);
-
-			// Subtle lunar atmospheric halo
-			Color haloColor = new Color(130, 160, 200) * 0.12f;
-			sb.Draw(pixel, new Rectangle(moonRect.X - 6, moonRect.Y - 6, moonRect.Width + 12, moonRect.Height + 12), haloColor);
-
-			// Draw Moon Sphere
-			sb.Draw(moon, moonRect, new Color(225, 235, 250) * 0.88f);
-
-			// Micro tactical targeting telemetry beside Moon
-			if (font != null)
-			{
-				float tagScale = 0.52f;
-				string moonTag1 = "[ LUNA // HUMANITY SERVER ]";
-				string moonTag2 = "DIST: 384,400 KM // LINK: 99.8%";
-				Vector2 tagPos = new Vector2(moonRect.Right + 8, moonRect.Y + 4);
-
-				Utils.DrawBorderString(sb, moonTag1, tagPos, new Color(190, 205, 225) * 0.70f, tagScale);
-				Utils.DrawBorderString(sb, moonTag2, tagPos + new Vector2(0, 14), new Color(150, 170, 195) * 0.55f, tagScale * 0.90f);
-			}
-		}
-
-		private static void DrawMovingEarth(SpriteBatch sb, Texture2D pixel, float time, int screenW, int screenH)
+		private static void DrawEarth(SpriteBatch sb, Texture2D pixel, float time, int screenW, int screenH)
 		{
 			if (earthTexture == null || !earthTexture.IsLoaded || earthTexture.Value == null)
 				return;
 
 			Texture2D earth = earthTexture.Value;
 
-			// Smooth orbital drift and slight breathing to simulate floating above Earth
-			float driftX = (float)Math.Sin(time * 0.08f) * 22f;
-			float driftY = (float)Math.Cos(time * 0.06f) * 12f;
-			float scalePulse = 1.04f + (float)Math.Sin(time * 0.04f) * 0.015f;
+			// Orbital drift: Earth slowly shifts gently across the viewport
+			float driftX = (float)Math.Sin(time * 0.05f) * 20f;
+			float driftY = (float)Math.Cos(time * 0.04f) * 10f;
 
-			int eW = (int)(screenW * scalePulse);
-			int eH = (int)(screenH * scalePulse);
+			// Position Earth so it is "not too close"
+			// The curved blue atmospheric horizon rests gracefully across the lower-center of the screen
+			int eW = (int)(screenW * 1.15f);
+			int eH = (int)(eW * (earth.Height / (float)earth.Width));
 			int eX = (int)((screenW - eW) / 2f + driftX);
-			int eY = (int)((screenH - eH) / 2f + driftY);
+			// Lowered so the top ~50% of the screen is deep space and the curved planet spans the bottom half
+			int eY = (int)(screenH * 0.28f + driftY);
 
 			Rectangle earthDest = new Rectangle(eX, eY, eW, eH);
 
-			// Darker moodier tint for crisp tactical HUD contrast
-			sb.Draw(earth, earthDest, new Color(200, 208, 220) * 0.84f);
-		}
-
-		private static void UpdateAndDrawAlienDrops(SpriteBatch sb, Texture2D pixel, int screenW, int screenH)
-		{
-			var font = FontAssets.MouseText.Value;
-			var rand = Main.rand ?? new Terraria.Utilities.UnifiedRandom();
-
-			// Spawn periodic alien dropships plunging into Earth
-			alienSpawnTimer += 0.016f;
-			if (alienSpawnTimer > 3.8f)
-			{
-				alienSpawnTimer = 0f;
-				for (int i = 0; i < alienDrops.Length; i++)
-				{
-					if (!alienDrops[i].Active)
-					{
-						// Drop trajectory: starts high above Earth in orbit and plunges down-left or down-right into Earth
-						float startX = (float)(screenW * (0.20f + rand.NextDouble() * 0.65f));
-						float startY = (float)(screenH * (0.05f + rand.NextDouble() * 0.20f));
-						float targetX = startX - 160f - (float)(rand.NextDouble() * 140f);
-						float targetY = (float)(screenH * (0.60f + rand.NextDouble() * 0.35f));
-
-						alienDrops[i] = new AlienDrop
-						{
-							Start = new Vector2(startX, startY),
-							Current = new Vector2(startX, startY),
-							Target = new Vector2(targetX, targetY),
-							Progress = 0f,
-							Speed = 0.006f + (float)rand.NextDouble() * 0.007f,
-							TrailLength = 45f + (float)rand.NextDouble() * 35f,
-							ImpactTimer = 0f,
-							Active = true
-						};
-
-						// Trigger tactical alert
-						alienWarningText = $"! [ ALERT: MACHINE LIFEFORM DESCENT DETECTED // SECTOR {rand.Next(1, 15):D2} ]";
-						alienWarningTimer = 3.5f;
-						break;
-					}
-				}
-			}
-
-			// Render and update each drop
-			for (int i = 0; i < alienDrops.Length; i++)
-			{
-				if (!alienDrops[i].Active)
-					continue;
-
-				alienDrops[i].Progress += alienDrops[i].Speed;
-				alienDrops[i].Current = Vector2.Lerp(alienDrops[i].Start, alienDrops[i].Target, alienDrops[i].Progress);
-
-				Vector2 dir = alienDrops[i].Target - alienDrops[i].Start;
-				if (dir.LengthSquared() > 0.001f)
-					dir.Normalize();
-
-				// Draw blazing plasma re-entry trail
-				int segments = 16;
-				float trailLen = alienDrops[i].TrailLength;
-				for (int s = 0; s < segments; s++)
-				{
-					float f = s / (float)segments;
-					Vector2 segPos = alienDrops[i].Current - dir * (f * trailLen);
-					float segAlpha = (1f - f) * 0.90f;
-					int segThick = Math.Max(1, (int)((1f - f) * 4f));
-
-					// Re-entry fire gradient: White -> Gold/Orange -> Fiery Crimson
-					Color trailColor = Color.Lerp(new Color(255, 230, 160), new Color(255, 60, 20), f) * segAlpha;
-					sb.Draw(pixel, new Rectangle((int)segPos.X - segThick / 2, (int)segPos.Y - segThick / 2, segThick, segThick), trailColor);
-				}
-
-				// Glowing plasma head (alien landing pod)
-				sb.Draw(pixel, new Rectangle((int)alienDrops[i].Current.X - 2, (int)alienDrops[i].Current.Y - 2, 5, 5), new Color(255, 245, 210));
-
-				// Check atmospheric entry / impact completion
-				if (alienDrops[i].Progress >= 1f)
-				{
-					alienDrops[i].ImpactTimer += 0.05f;
-					// Expanding shockwave ring upon atmospheric entry
-					float shockRadius = alienDrops[i].ImpactTimer * 38f;
-					float shockAlpha = MathHelper.Clamp(1f - alienDrops[i].ImpactTimer, 0f, 1f);
-					if (shockAlpha > 0f)
-					{
-						int pts = 12;
-						for (int p = 0; p < pts; p++)
-						{
-							float ang = p * MathHelper.TwoPi / pts;
-							Vector2 pt = alienDrops[i].Target + new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * shockRadius;
-							sb.Draw(pixel, new Rectangle((int)pt.X, (int)pt.Y, 2, 2), new Color(255, 120, 50) * shockAlpha);
-						}
-					}
-					else
-					{
-						alienDrops[i].Active = false;
-					}
-				}
-			}
-
-			// Draw tactical alien descent warning ticker
-			if (alienWarningTimer > 0f && font != null)
-			{
-				alienWarningTimer -= 0.016f;
-				float flash = (float)Math.Sin(Main.timeForVisualEffects * 0.2f) * 0.3f + 0.7f;
-				float warnScale = 0.62f;
-				Vector2 warnSize = font.MeasureString(alienWarningText) * warnScale;
-				Vector2 warnPos = new Vector2(screenW / 2f - warnSize.X / 2f, screenH - 58f);
-
-				sb.Draw(pixel, new Rectangle((int)warnPos.X - 8, (int)warnPos.Y - 2, (int)warnSize.X + 16, (int)warnSize.Y + 4), new Color(40, 10, 10) * (0.85f * flash));
-				Utils.DrawBorderString(sb, alienWarningText, warnPos, new Color(255, 80, 60) * flash, warnScale);
-			}
+			// Atmospheric blue glow feather on top of Earth
+			Color earthColor = new Color(195, 205, 220) * 0.82f;
+			sb.Draw(earth, earthDest, earthColor);
 		}
 
 		private static void DrawYoRHaBunker(SpriteBatch sb, Texture2D pixel, float time, int screenW, int screenH)
@@ -401,47 +198,54 @@ namespace AutomataMusic.UI
 			Texture2D bunker = bunkerTexture.Value;
 			var font = FontAssets.MouseText.Value;
 
-			// Station orbital coordinates: situated majestically in low Earth orbit
+			// Station orbital position: hovering gracefully in space above the Earth's curve
 			float baseCenterX = screenW * 0.50f;
 			float baseCenterY = screenH * 0.38f;
 
-			// Station dynamics: gentle altitude bobbing & tiny attitude drift
-			float bobY = (float)Math.Sin(time * 0.35f) * 6f;
-			float swayX = (float)Math.Cos(time * 0.25f) * 4f;
-			float rot = (float)Math.Sin(time * 0.15f) * 0.012f;
+			// Hovering: smooth, gentle vertical orbital float
+			float hoverY = (float)Math.Sin(time * 0.40f) * 7f;
+			float hoverX = (float)Math.Cos(time * 0.28f) * 4f;
 
-			Vector2 bunkerPos = new Vector2(baseCenterX + swayX, baseCenterY + bobY);
+			Vector2 bunkerPos = new Vector2(baseCenterX + hoverX, baseCenterY + hoverY);
 
-			// Scale the Bunker station to fit comfortably in orbit
-			float baseW = screenW * 0.42f;
-			float scale = baseW / bunker.Width;
-			float drawW = bunker.Width * scale;
-			float drawH = bunker.Height * scale;
+			// Rotating: smooth, continuous rotation around the central command tower axis
+			float stationRotation = time * 0.025f;
 
-			Rectangle bunkerDest = new Rectangle((int)(bunkerPos.X - drawW / 2f), (int)(bunkerPos.Y - drawH / 2f), (int)drawW, (int)drawH);
+			// Scale: 38% screen width (clean, clear, detailed)
+			float desiredW = screenW * 0.36f;
+			float scale = desiredW / bunker.Width;
 
-			// Check mouse hover over Bunker
-			Point mouse = new Point(Main.mouseX, Main.mouseY);
-			bool hovered = bunkerDest.Contains(mouse);
+			// Center of rotation: precisely at the central command tower (width/2, height/2)
+			Vector2 origin = new Vector2(bunker.Width / 2f, bunker.Height / 2f);
 
-			// Draw station shadow / soft ambient backing
-			sb.Draw(pixel, new Rectangle(bunkerDest.X + 6, bunkerDest.Y + 6, bunkerDest.Width - 12, bunkerDest.Height - 12), new Color(4, 4, 8) * 0.45f);
+			// Draw the Bunker Spaceship
+			Color shipTint = new Color(235, 238, 245) * 0.95f;
+			sb.Draw(bunker, bunkerPos, null, shipTint, stationRotation, origin, scale, SpriteEffects.None, 0f);
 
-			// Draw Bunker Station
-			Color stationTint = hovered ? new Color(255, 250, 240) : new Color(230, 235, 245) * 0.95f;
-			sb.Draw(bunker, bunkerDest, null, stationTint, rot, new Vector2(bunker.Width / 2f, bunker.Height / 2f), SpriteEffects.None, 0f);
+			// Blinking Navigation Beacons rotating seamlessly with the station
+			float rCos = (float)Math.Cos(stationRotation);
+			float rSin = (float)Math.Sin(stationRotation);
 
-			// Blinking Navigation & Array LEDs (Green / Gold / Cyan beacons)
-			DrawStationBeacon(sb, pixel, bunkerPos + new Vector2(-drawW * 0.22f, -drawH * 0.18f), Color.LimeGreen, time * 4.5f);
-			DrawStationBeacon(sb, pixel, bunkerPos + new Vector2(drawW * 0.32f, -drawH * 0.12f), Color.Gold, time * 3.8f);
-			DrawStationBeacon(sb, pixel, bunkerPos + new Vector2(-drawW * 0.38f, drawH * 0.05f), Color.Cyan, time * 5.0f);
-			DrawStationBeacon(sb, pixel, bunkerPos + new Vector2(drawW * 0.28f, drawH * 0.25f), Color.LimeGreen, time * 4.0f);
+			// Beacon 1: Top-Left Solar Array Tip
+			Vector2 b1Local = new Vector2(-bunker.Width * 0.35f, -bunker.Height * 0.28f) * scale;
+			Vector2 b1Pos = bunkerPos + new Vector2(b1Local.X * rCos - b1Local.Y * rSin, b1Local.X * rSin + b1Local.Y * rCos);
+			DrawStationBeacon(sb, pixel, b1Pos, Color.LimeGreen, time * 4.5f);
 
-			// Tactical Targeting Brackets around the Bunker
-			Color bracketColor = hovered ? new Color(255, 220, 130) * 0.90f : new Color(210, 200, 175) * 0.45f;
-			int bArm = 16;
-			int bPad = 12;
-			Rectangle targetBox = new Rectangle(bunkerDest.X - bPad, bunkerDest.Y - bPad, bunkerDest.Width + bPad * 2, bunkerDest.Height + bPad * 2);
+			// Beacon 2: Top-Right Solar Array Tip
+			Vector2 b2Local = new Vector2(bunker.Width * 0.38f, -bunker.Height * 0.20f) * scale;
+			Vector2 b2Pos = bunkerPos + new Vector2(b2Local.X * rCos - b2Local.Y * rSin, b2Local.X * rSin + b2Local.Y * rCos);
+			DrawStationBeacon(sb, pixel, b2Pos, Color.Gold, time * 3.8f);
+
+			// Beacon 3: Bottom-Left Array Tip
+			Vector2 b3Local = new Vector2(-bunker.Width * 0.32f, bunker.Height * 0.32f) * scale;
+			Vector2 b3Pos = bunkerPos + new Vector2(b3Local.X * rCos - b3Local.Y * rSin, b3Local.X * rSin + b3Local.Y * rCos);
+			DrawStationBeacon(sb, pixel, b3Pos, Color.Cyan, time * 5.0f);
+
+			// Tactical Targeting Brackets around the Station
+			Color bracketColor = new Color(210, 200, 175) * 0.40f;
+			float boxSize = desiredW * 0.88f;
+			int bArm = 14;
+			Rectangle targetBox = new Rectangle((int)(bunkerPos.X - boxSize / 2f), (int)(bunkerPos.Y - boxSize / 2f), (int)boxSize, (int)boxSize);
 
 			// Corner brackets ┌ ┐ └ ┘
 			sb.Draw(pixel, new Rectangle(targetBox.X, targetBox.Y, bArm, 1), bracketColor);
@@ -451,118 +255,32 @@ namespace AutomataMusic.UI
 			sb.Draw(pixel, new Rectangle(targetBox.X, targetBox.Bottom - 1, bArm, 1), bracketColor);
 			sb.Draw(pixel, new Rectangle(targetBox.X, targetBox.Bottom - bArm, 1, bArm), bracketColor);
 			sb.Draw(pixel, new Rectangle(targetBox.Right - bArm, targetBox.Bottom - 1, bArm, 1), bracketColor);
-			sb.Draw(pixel, new Rectangle(targetBox.Right - 1, targetBox.Bottom - bArm, 1, bArm), bracketColor);
+			sb.Draw(pixel, new Rectangle(targetBox.Right - 1, targetBox.Bottom - 1, bArm, 1), bracketColor);
 
-			// Tactical HUD Station Label
+			// Tactical Telemetry Tag
 			if (font != null)
 			{
-				float tagScale = 0.54f;
+				float tagScale = 0.52f;
 				string bunkerTag = MenuLyrics.CheckCjkSupport(font)
 					? "[ 軌道衛星バンカー // YoRHa 13th BASE \"BUNKER\" ]"
 					: "[ YoRHa 13th ORBITAL BASE // \"BUNKER\" ]";
-				string statusTag = "ORBIT: 420 KM // STATUS: ALL SYSTEMS NOMINAL // [CLICK TO COMMS]";
+				string statusTag = "STATUS: GEO-STATIONARY ORBIT // ATTITUDE: ROTATING // ALL SYSTEMS NOMINAL";
 
 				Vector2 bTagSize = font.MeasureString(bunkerTag) * tagScale;
 				Vector2 sTagSize = font.MeasureString(statusTag) * (tagScale * 0.88f);
 
-				Vector2 tagPos = new Vector2(targetBox.Center.X - bTagSize.X / 2f, targetBox.Bottom + 4);
-				Utils.DrawBorderString(sb, bunkerTag, tagPos, hovered ? new Color(255, 235, 170) : new Color(230, 220, 195) * 0.85f, tagScale);
-				Utils.DrawBorderString(sb, statusTag, new Vector2(targetBox.Center.X - sTagSize.X / 2f, tagPos.Y + 14), new Color(175, 170, 155) * 0.70f, tagScale * 0.88f);
+				Vector2 tagPos = new Vector2(targetBox.Center.X - bTagSize.X / 2f, targetBox.Bottom + 6);
+				Utils.DrawBorderString(sb, bunkerTag, tagPos, new Color(230, 220, 195) * 0.80f, tagScale);
+				Utils.DrawBorderString(sb, statusTag, new Vector2(targetBox.Center.X - sTagSize.X / 2f, tagPos.Y + 14), new Color(175, 170, 155) * 0.65f, tagScale * 0.88f);
 			}
 		}
 
 		private static void DrawStationBeacon(SpriteBatch sb, Texture2D pixel, Vector2 pos, Color color, float pulseTime)
 		{
 			float pulse = (float)Math.Sin(pulseTime) * 0.5f + 0.5f;
-			if (pulse > 0.4f)
+			if (pulse > 0.35f)
 			{
 				sb.Draw(pixel, new Rectangle((int)pos.X - 1, (int)pos.Y - 1, 3, 3), color * pulse);
-			}
-		}
-
-		private static void DrawFlightUnitPatrol(SpriteBatch sb, Texture2D pixel, int screenW, int screenH)
-		{
-			if (flightUnitTexture == null || !flightUnitTexture.IsLoaded || flightUnitTexture.Value == null)
-				return;
-
-			flightUnitTimer += 0.016f;
-			if (flightUnitProgress < 0f && flightUnitTimer > 18f)
-			{
-				flightUnitTimer = 0f;
-				flightUnitProgress = 0f;
-			}
-
-			if (flightUnitProgress >= 0f)
-			{
-				flightUnitProgress += 0.0022f;
-				if (flightUnitProgress > 1.25f)
-				{
-					flightUnitProgress = -0.5f;
-				}
-
-				Texture2D ship = flightUnitTexture.Value;
-				var font = FontAssets.MouseText.Value;
-
-				float startX = -150f;
-				float endX = screenW + 150f;
-				float currentX = MathHelper.Lerp(startX, endX, flightUnitProgress);
-				float currentY = screenH * 0.28f + (float)Math.Sin(flightUnitProgress * 12f) * 16f;
-
-				int shipW = (int)(screenW * 0.16f);
-				int shipH = (int)(shipW * (ship.Height / (float)ship.Width));
-				Rectangle shipRect = new Rectangle((int)currentX, (int)currentY, shipW, shipH);
-
-				// Draw glowing cyan ion thruster trail
-				for (int t = 1; t <= 12; t++)
-				{
-					float f = t / 12f;
-					Vector2 trailPos = new Vector2(shipRect.X - t * 7f, shipRect.Center.Y);
-					int tSize = Math.Max(2, (int)((1f - f) * 10f));
-					sb.Draw(pixel, new Rectangle((int)trailPos.X, (int)trailPos.Y - tSize / 2, tSize * 2, tSize), new Color(120, 230, 255) * ((1f - f) * 0.65f));
-				}
-
-				// Draw Flight Unit Ho229
-				sb.Draw(ship, shipRect, new Color(245, 248, 255));
-
-				// Tactical reticle tracking 2B
-				if (font != null)
-				{
-					string pilotTag = "[ UNIT: Ho229 // PILOT: 2B // PATROL ROUTE ]";
-					Utils.DrawBorderString(sb, pilotTag, new Vector2(shipRect.X, shipRect.Bottom + 4), new Color(180, 225, 255) * 0.75f, 0.50f);
-				}
-			}
-		}
-
-		private static void DrawEmilEasterEgg(SpriteBatch sb, int screenW, int screenH)
-		{
-			if (emilFlyProgress < 0f || emilTexture == null || !emilTexture.IsLoaded || emilTexture.Value == null)
-				return;
-
-			emilFlyProgress += 0.0035f;
-			if (emilFlyProgress > 1.2f)
-			{
-				emilFlyProgress = -1f;
-			}
-
-			Texture2D emil = emilTexture.Value;
-			var font = FontAssets.MouseText.Value;
-
-			float startX = screenW + 100f;
-			float endX = -120f;
-			float currentX = MathHelper.Lerp(startX, endX, emilFlyProgress);
-			float currentY = emilFlyY + (float)Math.Sin(emilFlyProgress * 14f) * 25f;
-			float rot = -emilFlyProgress * 18f;
-
-			int sz = 74;
-			Rectangle emilRect = new Rectangle((int)currentX, (int)currentY, sz, sz);
-
-			sb.Draw(emil, emilRect, null, Color.White, rot, new Vector2(emil.Width / 2f, emil.Height / 2f), SpriteEffects.None, 0f);
-
-			if (font != null)
-			{
-				string emilSong = "♪ Every day's a sale! Every sale's a win! Buy stuff now or it'll be gone! ♪";
-				Vector2 songSize = font.MeasureString(emilSong) * 0.60f;
-				Utils.DrawBorderString(sb, emilSong, new Vector2(currentX - songSize.X / 2f, currentY + 46), new Color(255, 235, 140), 0.60f);
 			}
 		}
 
@@ -627,105 +345,6 @@ namespace AutomataMusic.UI
 					sb.Draw(pixel, new Rectangle(x, y - 3, 1, 7), crosshairColor);
 				}
 			}
-		}
-
-		private static void HandleInteractions(int screenW, int screenH)
-		{
-			bool isMouseDown = Main.mouseLeft;
-			bool clicked = isMouseDown && !wasMouseDown;
-			wasMouseDown = isMouseDown;
-
-			if (clicked)
-			{
-				Point mPos = new Point(Main.mouseX, Main.mouseY);
-
-				// 1. Click Bunker Area -> Pod 042 Report
-				Rectangle bunkerArea = new Rectangle((int)(screenW * 0.30f), (int)(screenH * 0.22f), (int)(screenW * 0.40f), (int)(screenH * 0.32f));
-				if (bunkerArea.Contains(mPos))
-				{
-					SoundEngine.PlaySound(SoundID.MenuTick);
-					podDialogTitle = "[ POD 042 // TACTICAL TRANSMISSION ]";
-					string[] reports = new string[]
-					{
-						"Report: Orbital Bunker operational. All YoRHa android units deployed to surface sectors.",
-						"Report: Humanity's server communication frequency confirmed. Glory to Mankind.",
-						"Proposal: Maintain orbital observation. Surface machine activity remains elevated.",
-						"Report from Commander White: All personnel are required to perform routine diagnostic checks."
-					};
-					podDialogText = reports[Main.rand.Next(reports.Length)];
-					podDialogTimer = 6.0f;
-					return;
-				}
-
-				// 2. Click Moon Area -> Humanity Server Transmission
-				Rectangle moonArea = new Rectangle((int)(screenW * 0.72f), (int)(screenH * 0.12f), (int)(screenW * 0.16f), (int)(screenH * 0.20f));
-				if (moonArea.Contains(mPos))
-				{
-					SoundEngine.PlaySound(SoundID.MaxMana);
-					podDialogTitle = "[ TRANSMISSION: COUNCIL OF HUMANITY ]";
-					podDialogText = "To all YoRHa personnel: Humanity's prayers are with you on the front lines. Glory to Mankind.";
-					podDialogTimer = 6.5f;
-					return;
-				}
-
-				// 3. Secret Easter Egg: Click 4 times anywhere in empty space -> Emil flyby!
-				easterEggClicks++;
-				if (easterEggClicks >= 4)
-				{
-					easterEggClicks = 0;
-					emilFlyProgress = 0f;
-					emilFlyY = (float)(screenH * (0.15f + Main.rand.NextDouble() * 0.35f));
-					SoundEngine.PlaySound(SoundID.Item29);
-					podDialogTitle = "[ UNIDENTIFIED VEHICLE DETECTED ]";
-					podDialogText = "Emil: 'Hey there! Check out my shop! Low prices guaranteed!'";
-					podDialogTimer = 5.5f;
-				}
-			}
-		}
-
-		private static void DrawPodDialog(SpriteBatch sb, Texture2D pixel, int screenW, int screenH)
-		{
-			if (podDialogTimer <= 0f)
-				return;
-
-			podDialogTimer -= 0.016f;
-			var font = FontAssets.MouseText.Value;
-			if (font == null)
-				return;
-
-			float dialogAlpha = MathHelper.Clamp(podDialogTimer, 0f, 1f);
-			float titleScale = 0.65f;
-			float textScale = 0.58f;
-
-			Vector2 tSize = font.MeasureString(podDialogTitle) * titleScale;
-			Vector2 bSize = font.MeasureString(podDialogText) * textScale;
-
-			float boxW = Math.Max(tSize.X, bSize.X) + 36f;
-			float boxH = 58f;
-			float boxX = screenW / 2f - boxW / 2f;
-			float boxY = screenH * 0.58f;
-
-			Rectangle boxRect = new Rectangle((int)boxX, (int)boxY, (int)boxW, (int)boxH);
-
-			// Dark matte tactical backing
-			sb.Draw(pixel, boxRect, new Color(12, 12, 16) * (0.92f * dialogAlpha));
-
-			// Border & brackets
-			Color brkColor = new Color(245, 235, 205) * dialogAlpha;
-			sb.Draw(pixel, new Rectangle(boxRect.X, boxRect.Y, boxRect.Width, 1), brkColor * 0.4f);
-			sb.Draw(pixel, new Rectangle(boxRect.X, boxRect.Bottom - 1, boxRect.Width, 1), brkColor * 0.4f);
-			sb.Draw(pixel, new Rectangle(boxRect.X, boxRect.Y, 1, boxRect.Height), brkColor * 0.4f);
-			sb.Draw(pixel, new Rectangle(boxRect.Right - 1, boxRect.Y, 1, boxRect.Height), brkColor * 0.4f);
-
-			// Corner notches
-			sb.Draw(pixel, new Rectangle(boxRect.X, boxRect.Y, 10, 2), brkColor);
-			sb.Draw(pixel, new Rectangle(boxRect.X, boxRect.Y, 2, 10), brkColor);
-			sb.Draw(pixel, new Rectangle(boxRect.Right - 10, boxRect.Y, 10, 2), brkColor);
-			sb.Draw(pixel, new Rectangle(boxRect.Right - 2, boxRect.Y, 2, 10), brkColor);
-
-			// Text
-			Utils.DrawBorderString(sb, podDialogTitle, new Vector2(boxRect.X + 16, boxRect.Y + 8), new Color(255, 225, 140) * dialogAlpha, titleScale);
-			Utils.DrawBorderString(sb, podDialogText, new Vector2(boxRect.X + 16, boxRect.Y + 28), new Color(230, 225, 215) * dialogAlpha, textScale);
 		}
 
 		private static void DrawTacticalFrame(SpriteBatch sb, Texture2D pixel, int screenW, int screenH, float time)

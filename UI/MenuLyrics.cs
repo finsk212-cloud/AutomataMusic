@@ -33,8 +33,8 @@ namespace AutomataMusic.UI
 		{
 			// Intro Title Card (2.0s - 20.0s during guitar intro)
 			new LyricEntry(2.0f, 20.0f,
-				"Weight of the World / 壊レタ世界ノ歌",
-				"Weight of the World / Kowareta Sekai no Uta",
+				"Song: Weight of the World / 壊レタ世界ノ歌",
+				"Song: Weight of the World / Kowareta Sekai no Uta",
 				"— from NieR:Automata —",
 				isTitleCard: true),
 

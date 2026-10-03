@@ -24,10 +24,15 @@ namespace AutomataMusic.UI
 		private struct Star
 		{
 			public Vector2 Position;
+			public float DriftSpeedX;
+			public float DriftSpeedY;
 			public float BaseAlpha;
 			public float TwinkleSpeed;
 			public float Phase;
+			public float SecondaryPhase;
 			public float Size;
+			public Color StarColor;
+			public int Layer;
 		}
 
 		// Textures
@@ -35,7 +40,7 @@ namespace AutomataMusic.UI
 
 		// Systems
 		private static readonly Particle[] particles = new Particle[32];
-		private static readonly Star[] stars = new Star[70];
+		private static readonly Star[] stars = new Star[120];
 		private static bool initialized = false;
 
 		// FX
@@ -61,16 +66,51 @@ namespace AutomataMusic.UI
 				};
 			}
 
-			// Subtle twinkling stars
+			// Realistic twinkling & faintly drifting stars across 3 depth layers
 			for (int i = 0; i < stars.Length; i++)
 			{
+				float layerRand = (float)rand.NextDouble();
+				int layer = layerRand < 0.65f ? 0 : (layerRand < 0.90f ? 1 : 2);
+
+				float size = layer switch
+				{
+					0 => 1f,
+					1 => 1.5f,
+					_ => 2f
+				};
+
+				float baseAlpha = layer switch
+				{
+					0 => 0.18f + (float)rand.NextDouble() * 0.28f,
+					1 => 0.38f + (float)rand.NextDouble() * 0.35f,
+					_ => 0.65f + (float)rand.NextDouble() * 0.35f
+				};
+
+				// Ultra-slow celestial parallax drift (slowly panning across deep space)
+				float driftSpeedX = (layer + 1) * (0.015f + (float)rand.NextDouble() * 0.025f);
+				float driftSpeedY = (layer + 1) * (-0.006f + (float)rand.NextDouble() * 0.012f);
+
+				// Natural stellar color spectrum (cool diamond blue, pure white, faint golden white, pale silver)
+				Color starColor = rand.Next(4) switch
+				{
+					0 => new Color(210, 228, 255), // Cool diamond blue
+					1 => new Color(255, 252, 245), // Pure stellar white
+					2 => new Color(255, 242, 218), // Warm golden dwarf
+					_ => new Color(225, 232, 250)  // Pale silver
+				};
+
 				stars[i] = new Star
 				{
 					Position = new Vector2((float)rand.NextDouble() * 1920f, (float)rand.NextDouble() * 1080f),
-					BaseAlpha = 0.20f + (float)rand.NextDouble() * 0.55f,
-					TwinkleSpeed = 1.2f + (float)rand.NextDouble() * 2.8f,
+					DriftSpeedX = driftSpeedX,
+					DriftSpeedY = driftSpeedY,
+					BaseAlpha = baseAlpha,
+					TwinkleSpeed = 0.9f + (float)rand.NextDouble() * 2.4f,
 					Phase = (float)rand.NextDouble() * MathHelper.TwoPi,
-					Size = (rand.NextDouble() > 0.85) ? 2f : 1f
+					SecondaryPhase = (float)rand.NextDouble() * MathHelper.TwoPi,
+					Size = size,
+					StarColor = starColor,
+					Layer = layer
 				};
 			}
 
@@ -148,13 +188,35 @@ namespace AutomataMusic.UI
 		{
 			for (int i = 0; i < stars.Length; i++)
 			{
-				float twinkle = (float)Math.Sin(time * stars[i].TwinkleSpeed + stars[i].Phase) * 0.4f + 0.6f;
-				float alpha = stars[i].BaseAlpha * twinkle;
+				// Faint celestial drift (moves slowly across space)
+				stars[i].Position.X += stars[i].DriftSpeedX;
+				stars[i].Position.Y += stars[i].DriftSpeedY;
+				if (stars[i].Position.X > 1920f) stars[i].Position.X -= 1920f;
+				if (stars[i].Position.X < 0f) stars[i].Position.X += 1920f;
+				if (stars[i].Position.Y > 1080f) stars[i].Position.Y -= 1080f;
+				if (stars[i].Position.Y < 0f) stars[i].Position.Y += 1080f;
+
+				// Organic multi-harmonic twinkling (like real stars in space)
+				float wave1 = (float)Math.Sin(time * stars[i].TwinkleSpeed + stars[i].Phase);
+				float wave2 = (float)Math.Sin(time * (stars[i].TwinkleSpeed * 1.618f) + stars[i].SecondaryPhase);
+				float norm = (wave1 * 0.65f + wave2 * 0.35f + 1f) * 0.5f; // [0, 1]
+				float shimmer = (float)Math.Pow(norm, 1.65); // Momentary glints, serene rest periods
+
+				float alpha = MathHelper.Clamp(stars[i].BaseAlpha * (0.22f + 0.92f * shimmer), 0f, 1f);
+
 				int sx = (int)(stars[i].Position.X * (screenW / 1920f));
 				int sy = (int)(stars[i].Position.Y * (screenH / 1080f));
-				int sz = (int)stars[i].Size;
+				int sz = (int)Math.Max(1f, stars[i].Size * (screenW / 1920f));
 
-				sb.Draw(pixel, new Rectangle(sx, sy, sz, sz), new Color(220, 225, 240) * alpha);
+				// For brighter foreground stars during a bright glint, render a subtle soft glow halo
+				if (stars[i].Layer == 2 && shimmer > 0.60f)
+				{
+					float haloStrength = (shimmer - 0.60f) * 2.5f;
+					Color haloCol = stars[i].StarColor * (alpha * haloStrength * 0.22f);
+					sb.Draw(pixel, new Rectangle(sx - 1, sy - 1, sz + 2, sz + 2), haloCol);
+				}
+
+				sb.Draw(pixel, new Rectangle(sx, sy, sz, sz), stars[i].StarColor * alpha);
 			}
 		}
 

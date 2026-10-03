@@ -176,13 +176,23 @@ namespace AutomataMusic.Common
 			return currentTime > 0.001f;
 		}
 
+		private static float savedMusicVolume = 1f;
+
 		public override void Load()
 		{
 			Main.OnPostDraw += OnPostDrawHandler;
 			Terraria.On_Main.DrawVersionNumber += Hook_DrawVersionNumber;
 			Terraria.On_Main.DrawSocialMediaButtons += Hook_DrawSocialMediaButtons;
 			Terraria.On_Main.DrawtModLoaderSocialMediaButtons += Hook_DrawtModLoaderSocialMediaButtons;
+			Terraria.On_Main.UpdateAudio += Hook_UpdateAudio;
 			checkedDefaultMenu = false;
+
+			// If music volume was zeroed out by Terraria's musicError bug, restore it
+			if (Main.musicVolume <= 0.001f)
+			{
+				Main.musicVolume = 1f;
+			}
+			savedMusicVolume = Main.musicVolume;
 		}
 
 		public override void Unload()
@@ -191,10 +201,55 @@ namespace AutomataMusic.Common
 			Terraria.On_Main.DrawVersionNumber -= Hook_DrawVersionNumber;
 			Terraria.On_Main.DrawSocialMediaButtons -= Hook_DrawSocialMediaButtons;
 			Terraria.On_Main.DrawtModLoaderSocialMediaButtons -= Hook_DrawtModLoaderSocialMediaButtons;
+			Terraria.On_Main.UpdateAudio -= Hook_UpdateAudio;
 			songStopwatch.Reset();
 			hasStartedPlaying = false;
 			songTimeOffset = 0;
 			checkedDefaultMenu = false;
+
+			// Critical: When unloading mod, reset curMusic if it points to a modded slot to prevent IndexOutOfRangeException in UpdateAudio
+			if (Main.curMusic >= Main.maxMusic || Main.curMusic < 0)
+			{
+				Main.curMusic = 0;
+			}
+			if (Main.newMusic >= Main.maxMusic || Main.newMusic < 0)
+			{
+				Main.newMusic = 0;
+			}
+			Main.musicError = 0;
+		}
+
+		private static void Hook_UpdateAudio(Terraria.On_Main.orig_UpdateAudio orig, Main self)
+		{
+			// 1. Keep track of user's intended music volume
+			if (Main.musicVolume > 0.001f)
+			{
+				savedMusicVolume = Main.musicVolume;
+			}
+
+			// 2. Prevent IndexOutOfRangeException in Main.UpdateAudio()
+			if (Main.musicFade != null)
+			{
+				if (Main.curMusic < 0 || Main.curMusic >= Main.musicFade.Length)
+				{
+					Main.curMusic = 0;
+				}
+				if (Main.newMusic < 0 || Main.newMusic >= Main.musicFade.Length)
+				{
+					Main.newMusic = 0;
+				}
+			}
+
+			// 3. Keep musicError suppressed so Terraria never triggers the musicVolume = 0 reset
+			Main.musicError = 0;
+
+			orig(self);
+
+			// 4. If musicVolume was somehow zeroed out by audio errors, automatically restore it
+			if (Main.musicVolume <= 0.001f && savedMusicVolume > 0.001f && Main.soundVolume > 0.001f)
+			{
+				Main.musicVolume = savedMusicVolume;
+			}
 		}
 
 		private static void Hook_DrawVersionNumber(Terraria.On_Main.orig_DrawVersionNumber orig, Color menuColor, float upBump)

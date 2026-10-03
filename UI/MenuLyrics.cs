@@ -184,14 +184,14 @@ namespace AutomataMusic.UI
 			new LyricEntry(263.5f, 270.0f,
 				"世界の重荷を背負っているかのように",
 				"Sekai no omoni o seotte iru ka no you ni",
-				"It's like I'm carrying the weight of the world"),
+				"Like I'm carrying the weight of the world"),
 
-			new LyricEntry(270.5f, 277.0f,
+			new LyricEntry(270.3f, 276.2f,
 				"どうにかして、私たち全員を救えたらいいのに",
 				"Dounika shite, watashitachi zen'in o sukuetara ii no ni",
 				"I wish that someway, somehow that I could save every one of us"),
 
-			new LyricEntry(277.5f, 282.5f,
+			new LyricEntry(276.5f, 282.2f,
 				"でも本当は、私はただの一人の少女にすぎない",
 				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
 				"But the truth is that I'm only one girl"),

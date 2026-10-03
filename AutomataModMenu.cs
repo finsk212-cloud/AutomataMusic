@@ -1,4 +1,7 @@
 using AutomataMusic.Common;
+using AutomataMusic.UI;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Terraria.ModLoader;
 
 namespace AutomataMusic
@@ -14,5 +17,17 @@ namespace AutomataMusic
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, "Assets/Music/WeightOfTheWorld", "Assets/Music/Menu", "Assets/Music/Title");
 
 		public static void SeekTo(float targetSeconds) => AutomataMusicSystem.SeekTo(targetSeconds);
+
+		public override void PostDrawLogo(SpriteBatch spriteBatch, Vector2 logoDrawCenter, float logoRotation, float logoScale, Color drawColor)
+		{
+			AutomataMusicSystem.UpdatePlaybackState();
+
+			if (AutomataMusicSystem.ShouldDrawLyrics(out float currentTime))
+			{
+				// In PostDrawLogo, spriteBatch is already active with Main.UIScaleMatrix.
+				// Drawing here renders lyrics on the background layer, behind all UI panels and buttons.
+				MenuLyrics.DrawLyrics(spriteBatch, currentTime, 1f);
+			}
+		}
 	}
 }

@@ -19,6 +19,7 @@ namespace AutomataMusic.Common
 		private static readonly Stopwatch songStopwatch = new Stopwatch();
 		private static double songTimeOffset = 0;
 		private static bool hasStartedPlaying = false;
+		private static bool checkedDefaultMenu = false;
 
 		public static float CurrentSongTime
 		{
@@ -84,7 +85,95 @@ namespace AutomataMusic.Common
 			songStopwatch.Restart();
 		}
 
-		private static bool checkedDefaultMenu = false;
+		public static void UpdatePlaybackState()
+		{
+			// Alt-Tab check: if game lost focus or sounds paused, freeze stopwatch
+			bool isAudioPaused = !Main.hasFocus || SoundEngine.AreSoundsPaused;
+			if (isAudioPaused)
+			{
+				if (songStopwatch.IsRunning)
+				{
+					songStopwatch.Stop();
+				}
+				return;
+			}
+
+			int currentMusic = Main.curMusic;
+			int targetMusic = MusicHelper.GetTrackWithCandidates(ModContent.GetInstance<AutomataMusic>(), "Assets/Music/WeightOfTheWorld", "Assets/Music/Menu", "Assets/Music/Title");
+
+			if (targetMusic < 0 || currentMusic != targetMusic)
+			{
+				if (hasStartedPlaying)
+				{
+					hasStartedPlaying = false;
+					songTimeOffset = 0;
+					songStopwatch.Reset();
+				}
+				return;
+			}
+
+			bool isTrackActuallyPlaying = false;
+			try
+			{
+				if (Main.audioSystem is LegacyAudioSystem legacy && legacy.AudioTracks != null && targetMusic >= 0 && targetMusic < legacy.AudioTracks.Length)
+				{
+					var track = legacy.AudioTracks[targetMusic];
+					if (track != null && track.IsPlaying)
+					{
+						isTrackActuallyPlaying = true;
+					}
+				}
+				else
+				{
+					isTrackActuallyPlaying = true;
+				}
+			}
+			catch
+			{
+				isTrackActuallyPlaying = true;
+			}
+
+			if (!isTrackActuallyPlaying)
+				return;
+
+			if (!hasStartedPlaying)
+			{
+				hasStartedPlaying = true;
+				songTimeOffset = 0;
+				songStopwatch.Restart();
+			}
+			else
+			{
+				if (!songStopwatch.IsRunning)
+				{
+					songStopwatch.Start();
+				}
+
+				if (songTimeOffset + songStopwatch.Elapsed.TotalSeconds > SongDuration)
+				{
+					songTimeOffset = 0;
+					songStopwatch.Restart();
+				}
+			}
+		}
+
+		public static bool ShouldDrawLyrics(out float currentTime)
+		{
+			currentTime = 0f;
+
+			if (!AutomataMusicConfig.Instance.ShowMenuLyrics)
+				return false;
+
+			bool isAudioPaused = !Main.hasFocus || SoundEngine.AreSoundsPaused;
+			if (isAudioPaused)
+				return false;
+
+			if (!hasStartedPlaying || !songStopwatch.IsRunning)
+				return false;
+
+			currentTime = CurrentSongTime;
+			return currentTime > 0.001f;
+		}
 
 		public override void Load()
 		{
@@ -116,112 +205,44 @@ namespace AutomataMusic.Common
 				}
 			}
 
-			if (!AutomataMusicConfig.Instance.ShowMenuLyrics)
+			UpdatePlaybackState();
+
+			// In menus, lyrics are rendered via AutomataModMenu.PostDrawLogo so they sit on the background layer behind UI panels.
+			// Only render in OnPostDraw when in active gameplay (e.g. music box playing Weight of the World).
+			if (Main.gameMenu)
 				return;
 
-			// Alt-Tab check: if game lost focus or sounds paused, freeze stopwatch and hide lyrics
-			bool isAudioPaused = !Main.hasFocus || SoundEngine.AreSoundsPaused;
-			if (isAudioPaused)
+			if (ShouldDrawLyrics(out float currentTime))
 			{
-				if (songStopwatch.IsRunning)
-				{
-					songStopwatch.Stop();
-				}
-				return; // Lyrics completely hidden while Alt-Tabbed
-			}
-
-			int currentMusic = Main.curMusic;
-			int targetMusic = MusicHelper.GetTrackWithCandidates(Mod, "Assets/Music/WeightOfTheWorld", "Assets/Music/Menu", "Assets/Music/Title");
-
-			if (targetMusic < 0 || currentMusic != targetMusic)
-			{
-				if (hasStartedPlaying)
-				{
-					hasStartedPlaying = false;
-					songTimeOffset = 0;
-					songStopwatch.Reset();
-				}
-				return;
-			}
-
-			// Verify if the audio track is actively producing sound in legacy audio system
-			bool isTrackActuallyPlaying = false;
-			try
-			{
-				if (Main.audioSystem is LegacyAudioSystem legacy && legacy.AudioTracks != null && targetMusic >= 0 && targetMusic < legacy.AudioTracks.Length)
-				{
-					var track = legacy.AudioTracks[targetMusic];
-					if (track != null && track.IsPlaying)
-					{
-						isTrackActuallyPlaying = true;
-					}
-				}
-				else
-				{
-					isTrackActuallyPlaying = true;
-				}
-			}
-			catch
-			{
-				isTrackActuallyPlaying = true;
-			}
-
-			if (!isTrackActuallyPlaying)
-			{
-				return;
-			}
-
-			if (!hasStartedPlaying)
-			{
-				hasStartedPlaying = true;
-				songTimeOffset = 0;
-				songStopwatch.Restart();
-			}
-			else
-			{
-				if (!songStopwatch.IsRunning)
-				{
-					songStopwatch.Start();
-				}
-
-				if (songTimeOffset + songStopwatch.Elapsed.TotalSeconds > SongDuration)
-				{
-					songTimeOffset = 0;
-					songStopwatch.Restart();
-				}
-			}
-
-			float currentTime = CurrentSongTime;
-
-			// Draw lyrics across all menus and gameplay while the track plays
-			bool beganOurBatch = false;
-			try
-			{
-				Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.UIScaleMatrix);
-				beganOurBatch = true;
-			}
-			catch (InvalidOperationException)
-			{
+				bool beganOurBatch = false;
 				try
 				{
-					Main.spriteBatch.End();
 					Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.UIScaleMatrix);
 					beganOurBatch = true;
 				}
-				catch
+				catch (InvalidOperationException)
 				{
+					try
+					{
+						Main.spriteBatch.End();
+						Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Main.UIScaleMatrix);
+						beganOurBatch = true;
+					}
+					catch
+					{
+					}
 				}
-			}
 
-			try
-			{
-				MenuLyrics.DrawLyrics(Main.spriteBatch, currentTime, 1f);
-			}
-			finally
-			{
-				if (beganOurBatch)
+				try
 				{
-					Main.spriteBatch.End();
+					MenuLyrics.DrawLyrics(Main.spriteBatch, currentTime, 1f);
+				}
+				finally
+				{
+					if (beganOurBatch)
+					{
+						Main.spriteBatch.End();
+					}
 				}
 			}
 		}

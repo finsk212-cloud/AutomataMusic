@@ -173,30 +173,28 @@ namespace AutomataMusic.UI
 				"Kanau no darou ka...",
 				"Come to life..."),
 
-			// Instrumental Solo (227.5s - 251.0s / 3:48 - 4:11) - Guitar & orchestral solo, no lyrics
+			// Instrumental Solo (227.5s - 256.5s / 3:48 - 4:16) - Guitar & orchestral solo, no lyrics
 
-			// Bridge (Vocals resume softly at 4:11 / 251.0s)
-			new LyricEntry(251.0f, 259.0f,
-				"信じ続ければ、いつか夢は叶うのだろうか",
-				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
-				"Maybe if I keep believing, my dreams will come to life"),
+			// Bridge Chorus (Vocals enter at 4:16.8 / 256.8s)
+			new LyricEntry(256.8f, 263.2f,
+				"意味などないとしても、大声で叫び続ける",
+				"Imi nado nai to shite mo, oogoe de sakebitsuzukeru",
+				"'Cause we're gonna shout it loud, even if our words seem meaningless"),
 
-			new LyricEntry(260.0f, 266.5f,
-				"叶うのだろうか…",
-				"Kanau no darou ka...",
-				"Come to life..."),
-
-			// 267.0s - 270.5s: Clean musical silence / drop before explosion (no lyrics)
-
-			new LyricEntry(270.5f, 277.5f,
-				"それでも、大声で叫び続ける",
-				"Soredemo, oogoe de sakebitsuzukeru",
-				"Still, we're gonna shout it loud, even if our words seem meaningless"),
-
-			new LyricEntry(278.0f, 282.0f,
-				"まるで世界の重荷を背負っているかのように",
-				"Marude sekai no omoni o seotte iru ka no you ni",
+			new LyricEntry(263.5f, 270.0f,
+				"世界の重荷を背負っているかのように",
+				"Sekai no omoni o seotte iru ka no you ni",
 				"It's like I'm carrying the weight of the world"),
+
+			new LyricEntry(270.5f, 277.0f,
+				"どうにかして、私たち全員を救えたらいいのに",
+				"Dounika shite, watashitachi zen'in o sukuetara ii no ni",
+				"I wish that someway, somehow that I could save every one of us"),
+
+			new LyricEntry(277.5f, 282.5f,
+				"でも本当は、私はただの一人の少女にすぎない",
+				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
+				"But the truth is that I'm only one girl"),
 
 			// Climax (Choir & full orchestra)
 			new LyricEntry(282.5f, 289.0f,

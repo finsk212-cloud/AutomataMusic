@@ -84,9 +84,12 @@ namespace AutomataMusic.Common
 			songStopwatch.Restart();
 		}
 
+		private static bool checkedDefaultMenu = false;
+
 		public override void Load()
 		{
 			Main.OnPostDraw += OnPostDrawHandler;
+			checkedDefaultMenu = false;
 		}
 
 		public override void Unload()
@@ -95,10 +98,24 @@ namespace AutomataMusic.Common
 			songStopwatch.Reset();
 			hasStartedPlaying = false;
 			songTimeOffset = 0;
+			checkedDefaultMenu = false;
 		}
 
 		private void OnPostDrawHandler(GameTime gameTime)
 		{
+			if (!checkedDefaultMenu && Main.gameMenu)
+			{
+				checkedDefaultMenu = true;
+				if (AutomataMusicConfig.Instance == null || AutomataMusicConfig.Instance.SetAsDefaultMenuTheme)
+				{
+					var automataMenu = ModContent.GetInstance<AutomataModMenu>();
+					if (automataMenu != null && MenuLoader.CurrentMenu != automataMenu)
+					{
+						AutomataMusic.ActivateMenuTheme();
+					}
+				}
+			}
+
 			if (!AutomataMusicConfig.Instance.ShowMenuLyrics)
 				return;
 

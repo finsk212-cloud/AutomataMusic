@@ -7,6 +7,11 @@ Configs: {
 			IndividualOverrides: Biome Music Overrides
 		}
 
+		SetAsDefaultMenuTheme: {
+			Label: Set as Default Menu Theme
+			Tooltip: Automatically makes NieR:Automata (Weight of the World) the active main menu theme when the mod is enabled.
+		}
+
 		ReplaceBossThemes: {
 			Label: Replace Boss Themes
 			Tooltip: When enabled, bosses will play custom NieR: Automata combat themes if the tracks are present.

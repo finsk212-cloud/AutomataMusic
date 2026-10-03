@@ -12,6 +12,9 @@ namespace AutomataMusic.Common
 		[Header("GeneralSettings")]
 
 		[DefaultValue(true)]
+		public bool SetAsDefaultMenuTheme;
+
+		[DefaultValue(true)]
 		public bool ReplaceBossThemes;
 
 		[DefaultValue(true)]

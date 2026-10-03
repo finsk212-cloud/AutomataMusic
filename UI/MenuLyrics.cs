@@ -33,18 +33,18 @@ namespace AutomataMusic.UI
 		{
 			// Intro Title Card (1.5s - 25.5s during guitar intro)
 			new LyricEntry(1.5f, 25.5f,
-				"Weight of the World / 壊レタ世界ノ歌",
-				"Weight of the World / Kowareta Sekai no Uta",
+				"Song: Weight of the World / 壊レタ世界ノ歌",
+				"Song: Weight of the World / Kowareta Sekai no Uta",
 				"— from NieR:Automata —",
 				isTitleCard: true),
 
 			// Verse 1 (Guitar solo intro ends at 27.2s)
-			new LyricEntry(27.2f, 33.8f,
+			new LyricEntry(27.2f, 32.8f,
 				"心と体の　希望さえ失いかけている",
 				"Kokoro to karada no kibou sae ushinaikakete iru",
 				"I feel like I'm losing hope in my body and my soul"),
 
-			new LyricEntry(34.0f, 39.5f,
+			new LyricEntry(33.1f, 39.2f,
 				"見上げる空は　不吉な影を落とし",
 				"Miageru sora wa fukitsuna kage o otoshi",
 				"And the sky, it looks so ominous"),
@@ -111,12 +111,12 @@ namespace AutomataMusic.UI
 				"Come to life..."),
 
 			// Verse 2
-			new LyricEntry(134.0f, 139.8f,
+			new LyricEntry(134.0f, 139.2f,
 				"笑い声が消え去り、生命の痕跡は洗い流され",
 				"Waraigoe ga kiesari, inochi no konseki wa arainagasare",
 				"After all the laughter fades, signs of life all washed away"),
 
-			new LyricEntry(140.2f, 146.5f,
+			new LyricEntry(139.6f, 146.2f,
 				"それでもまだ、穏やかな風を感じることができる",
 				"Soredemo mada, odayakana kaze o kanjiru koto ga dekiru",
 				"I can still, still feel a gentle breeze"),

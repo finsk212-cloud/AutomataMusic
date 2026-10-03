@@ -18,6 +18,17 @@ namespace AutomataMusic
 
 		public static void SeekTo(float targetSeconds) => AutomataMusicSystem.SeekTo(targetSeconds);
 
+		public override bool PreDrawLogo(SpriteBatch spriteBatch, ref Vector2 logoDrawCenter, ref float logoRotation, ref float logoScale, ref Color drawColor)
+		{
+			if (AutomataMusicConfig.Instance == null || AutomataMusicConfig.Instance.BunkerMenuTheme)
+			{
+				BunkerMenuTheme.Draw(spriteBatch, logoDrawCenter);
+				return false; // Suppress vanilla Terraria logo; Bunker title card rendered instead
+			}
+
+			return true;
+		}
+
 		public override void PostDrawLogo(SpriteBatch spriteBatch, Vector2 logoDrawCenter, float logoRotation, float logoScale, Color drawColor)
 		{
 			AutomataMusicSystem.UpdatePlaybackState();

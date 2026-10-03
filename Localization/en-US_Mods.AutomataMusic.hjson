@@ -7,6 +7,11 @@ Configs: {
 			IndividualOverrides: Biome Music Overrides
 		}
 
+		BunkerMenuTheme: {
+			Label: Bunker Menu Theme (Dark UI)
+			Tooltip: Overhauls the main menu with an authentic NieR:Automata Bunker dark tactical UI theme with custom title card, HUD framing, audio visualizer, and scanlines.
+		}
+
 		SetAsDefaultMenuTheme: {
 			Label: Set as Default Menu Theme
 			Tooltip: Automatically makes NieR:Automata (Weight of the World) the active main menu theme when the mod is enabled.

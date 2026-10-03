@@ -202,22 +202,22 @@ namespace AutomataMusic.UI
 				"Soredemo, oogoe de sakebitsuzukeru",
 				"Still, we're gonna shout it loud, even if our words seem meaningless"),
 
-			new LyricEntry(289.5f, 296.0f,
+			new LyricEntry(289.5f, 294.6f,
 				"まるで世界の重荷を背負っているかのように",
 				"Marude sekai no omoni o seotte iru ka no you ni",
 				"It's like I'm carrying the weight of the world"),
 
-			new LyricEntry(296.5f, 303.0f,
+			new LyricEntry(295.0f, 301.2f,
 				"どうか私たち全員を救えますように",
 				"Douka watashitachi zen'in o sukuemasu you ni",
 				"I hope that someway, somehow that I could save every one of us"),
 
-			new LyricEntry(303.5f, 309.0f,
+			new LyricEntry(301.8f, 306.8f,
 				"でも本当は、私はただの一人の少女にすぎない",
 				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
 				"But the truth is that I'm only one girl"),
 
-			new LyricEntry(309.5f, 317.0f,
+			new LyricEntry(307.4f, 317.0f,
 				"信じ続ければ、いつか夢は叶うのだろうか",
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),

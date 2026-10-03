@@ -18,18 +18,120 @@ namespace AutomataMusic.Common
 		public const float SongDuration = 344.607f;
 
 		private static readonly Stopwatch songStopwatch = new Stopwatch();
-		private static double songTimeOffset = 0;
+		private static float songAnchorSeconds = 0f;
 		private static bool hasStartedPlaying = false;
 		private static bool checkedDefaultMenu = false;
+
+		private static FieldInfo mp3StreamField;
+		private static FieldInfo soundInstField;
+		private static MethodInfo prepareBufferMethod;
+		private static bool reflectionFieldsCached = false;
+
+		private static void EnsureReflectionCached(object track)
+		{
+			if (reflectionFieldsCached || track == null)
+				return;
+
+			var trackType = track.GetType();
+			mp3StreamField = trackType.GetField("_mp3Stream", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+			soundInstField = trackType.GetField("_soundEffectInstance", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+			prepareBufferMethod = trackType.GetMethod("PrepareBuffer", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+			Type baseType = trackType.BaseType;
+			while (baseType != null && baseType != typeof(object))
+			{
+				if (soundInstField == null)
+					soundInstField = baseType.GetField("_soundEffectInstance", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+				if (prepareBufferMethod == null)
+					prepareBufferMethod = baseType.GetMethod("PrepareBuffer", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+				if (mp3StreamField == null)
+					mp3StreamField = baseType.GetField("_mp3Stream", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+				baseType = baseType.BaseType;
+			}
+
+			reflectionFieldsCached = true;
+		}
+
+		private static readonly FieldInfo isLoadingField = typeof(ModLoader).GetField("isLoading", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+
+		public static bool IsModLoaderLoading => isLoadingField?.GetValue(null) is true;
+
+		/// <summary>
+		/// Checks whether the target menu track is genuinely playing sound right now.
+		/// Strictly returns false if reloading, loading, muted, paused, fading out, or not yet started.
+		/// </summary>
+		public static bool IsTrackActuallyPlaying(out float streamSeconds)
+		{
+			streamSeconds = 0f;
+
+			// 1. Mod reloading / compiling: never play lyrics
+			if (IsModLoaderLoading)
+				return false;
+
+			// 2. Window focus and sound engine state
+			if (!Main.hasFocus || SoundEngine.AreSoundsPaused)
+				return false;
+
+			// 3. User volume
+			if (Main.musicVolume <= 0.01f)
+				return false;
+
+			var mod = ModContent.GetInstance<AutomataMusic>();
+			if (mod == null)
+				return false;
+
+			int targetMusic = MusicHelper.GetTrackWithCandidates(mod, "Assets/Music/WeightOfTheWorld", "Assets/Music/Menu", "Assets/Music/Title");
+			if (targetMusic <= 0 || Main.curMusic != targetMusic)
+				return false;
+
+			// 4. Music fading: if volume is fading in/out and effectively 0, sound is not playing yet
+			if (Main.musicFade != null && targetMusic < Main.musicFade.Length && Main.musicFade[targetMusic] <= 0.05f)
+				return false;
+
+			try
+			{
+				if (Main.audioSystem is LegacyAudioSystem legacy && legacy.AudioTracks != null && targetMusic >= 0 && targetMusic < legacy.AudioTracks.Length)
+				{
+					var track = legacy.AudioTracks[targetMusic];
+					if (track == null || !track.IsPlaying)
+						return false;
+
+					EnsureReflectionCached(track);
+
+					// 5. Check actual XNA audio hardware playback state
+					if (soundInstField?.GetValue(track) is DynamicSoundEffectInstance soundInst)
+					{
+						if (soundInst.State != SoundState.Playing)
+							return false;
+					}
+
+					// 6. Read stream byte position to know exact playback progress
+					if (mp3StreamField?.GetValue(track) is Stream mp3Stream && mp3Stream.Length > 0)
+					{
+						streamSeconds = (float)((double)mp3Stream.Position / mp3Stream.Length * SongDuration);
+						streamSeconds = MathHelper.Clamp(streamSeconds, 0f, SongDuration);
+						return true;
+					}
+
+					return true;
+				}
+			}
+			catch
+			{
+				return false;
+			}
+
+			return false;
+		}
 
 		public static float CurrentSongTime
 		{
 			get
 			{
-				if (!hasStartedPlaying)
+				if (!hasStartedPlaying || !songStopwatch.IsRunning)
 					return 0f;
 
-				double total = songTimeOffset + songStopwatch.Elapsed.TotalSeconds;
+				double total = songAnchorSeconds + songStopwatch.Elapsed.TotalSeconds;
 				if (total > SongDuration)
 				{
 					total %= SongDuration;
@@ -50,10 +152,7 @@ namespace AutomataMusic.Common
 					var track = legacy.AudioTracks[musicId];
 					if (track != null)
 					{
-						var trackType = track.GetType();
-						var mp3StreamField = trackType.GetField("_mp3Stream", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-						var soundInstField = trackType.GetField("_soundEffectInstance", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-						var prepareBufferMethod = trackType.GetMethod("PrepareBuffer", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+						EnsureReflectionCached(track);
 
 						if (mp3StreamField?.GetValue(track) is Stream mp3Stream)
 						{
@@ -82,65 +181,27 @@ namespace AutomataMusic.Common
 			{
 			}
 
-			songTimeOffset = targetSeconds;
+			songAnchorSeconds = targetSeconds;
 			songStopwatch.Restart();
 		}
 
 		public static void UpdatePlaybackState()
 		{
-			// Alt-Tab check: if game lost focus or sounds paused, freeze stopwatch
-			bool isAudioPaused = !Main.hasFocus || SoundEngine.AreSoundsPaused;
-			if (isAudioPaused)
+			if (!IsTrackActuallyPlaying(out float streamSeconds))
 			{
-				if (songStopwatch.IsRunning)
-				{
-					songStopwatch.Stop();
-				}
-				return;
-			}
-
-			int currentMusic = Main.curMusic;
-			int targetMusic = MusicHelper.GetTrackWithCandidates(ModContent.GetInstance<AutomataMusic>(), "Assets/Music/WeightOfTheWorld", "Assets/Music/Menu", "Assets/Music/Title");
-
-			if (targetMusic < 0 || currentMusic != targetMusic)
-			{
-				if (hasStartedPlaying)
+				if (hasStartedPlaying || songStopwatch.IsRunning)
 				{
 					hasStartedPlaying = false;
-					songTimeOffset = 0;
+					songAnchorSeconds = 0f;
 					songStopwatch.Reset();
 				}
 				return;
 			}
 
-			bool isTrackActuallyPlaying = false;
-			try
-			{
-				if (Main.audioSystem is LegacyAudioSystem legacy && legacy.AudioTracks != null && targetMusic >= 0 && targetMusic < legacy.AudioTracks.Length)
-				{
-					var track = legacy.AudioTracks[targetMusic];
-					if (track != null && track.IsPlaying)
-					{
-						isTrackActuallyPlaying = true;
-					}
-				}
-				else
-				{
-					isTrackActuallyPlaying = true;
-				}
-			}
-			catch
-			{
-				isTrackActuallyPlaying = true;
-			}
-
-			if (!isTrackActuallyPlaying)
-				return;
-
 			if (!hasStartedPlaying)
 			{
 				hasStartedPlaying = true;
-				songTimeOffset = 0;
+				songAnchorSeconds = streamSeconds;
 				songStopwatch.Restart();
 			}
 			else
@@ -150,9 +211,17 @@ namespace AutomataMusic.Common
 					songStopwatch.Start();
 				}
 
-				if (songTimeOffset + songStopwatch.Elapsed.TotalSeconds > SongDuration)
+				// Re-sync with actual audio stream if drift exceeds 0.35s (e.g. buffer lag, loop, seek)
+				float currentCalculated = songAnchorSeconds + (float)songStopwatch.Elapsed.TotalSeconds;
+				if (Math.Abs(currentCalculated - streamSeconds) > 0.35f)
 				{
-					songTimeOffset = 0;
+					songAnchorSeconds = streamSeconds;
+					songStopwatch.Restart();
+				}
+
+				if (songAnchorSeconds + songStopwatch.Elapsed.TotalSeconds > SongDuration)
+				{
+					songAnchorSeconds = streamSeconds;
 					songStopwatch.Restart();
 				}
 			}
@@ -165,15 +234,12 @@ namespace AutomataMusic.Common
 			if (!AutomataMusicConfig.Instance.ShowMenuLyrics)
 				return false;
 
-			bool isAudioPaused = !Main.hasFocus || SoundEngine.AreSoundsPaused;
-			if (isAudioPaused)
-				return false;
-
+			// Strictly bond: if audio isn't running, never draw lyrics
 			if (!hasStartedPlaying || !songStopwatch.IsRunning)
 				return false;
 
 			currentTime = CurrentSongTime;
-			return currentTime > 0.001f;
+			return currentTime > 0.05f;
 		}
 
 		private static float savedMusicVolume = 1f;
@@ -204,7 +270,11 @@ namespace AutomataMusic.Common
 			Terraria.On_Main.UpdateAudio -= Hook_UpdateAudio;
 			songStopwatch.Reset();
 			hasStartedPlaying = false;
-			songTimeOffset = 0;
+			songAnchorSeconds = 0f;
+			reflectionFieldsCached = false;
+			mp3StreamField = null;
+			soundInstField = null;
+			prepareBufferMethod = null;
 			checkedDefaultMenu = false;
 
 			// Critical: When unloading mod, reset curMusic if it points to a modded slot to prevent IndexOutOfRangeException in UpdateAudio

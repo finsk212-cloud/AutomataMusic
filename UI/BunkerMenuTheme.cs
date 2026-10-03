@@ -159,14 +159,14 @@ namespace AutomataMusic.UI
 				if (glitchIntensity < 0f) glitchIntensity = 0f;
 			}
 
-			// 1. Deep Space Base Canvas (#07070a)
-			sb.Draw(pixel, new Rectangle(0, 0, screenW, screenH), new Color(7, 7, 10));
+			// 1. Deep Space Base Canvas (#01090c matching deep space)
+			sb.Draw(pixel, new Rectangle(0, 0, screenW, screenH), new Color(1, 9, 12));
 
-			// 2. Twinkling Background Stars (Serene, deep space feel)
-			DrawStars(sb, pixel, time, screenW, screenH);
-
-			// 3. Planet Earth in Orbit (Not too close! Positioned in lower portion showing curvature & atmosphere)
+			// 2. Full-Screen Orbital Earth & Cosmos Panorama (Seamless edge-to-edge)
 			DrawEarth(sb, pixel, time, screenW, screenH);
+
+			// 3. Twinkling Background Stars (Organic depth & celestial shimmer over space)
+			DrawStars(sb, pixel, time, screenW, screenH);
 
 			// 4. Tactical Gridlines (54px spacing) with micro-crosshairs
 			DrawTacticalGrid(sb, pixel, screenW, screenH);
@@ -196,6 +196,15 @@ namespace AutomataMusic.UI
 				if (stars[i].Position.Y > 1080f) stars[i].Position.Y -= 1080f;
 				if (stars[i].Position.Y < 0f) stars[i].Position.Y += 1080f;
 
+				int sx = (int)(stars[i].Position.X * (screenW / 1920f));
+				int sy = (int)(stars[i].Position.Y * (screenH / 1080f));
+
+				// Only render twinkling stars in space, not across the planetary surface of Earth
+				float normX = (sx - screenW * 0.5f) / (screenW * 0.5f);
+				float horizonY = screenH * (0.59f + 0.25f * (normX * normX));
+				if (sy > horizonY)
+					continue;
+
 				// Organic multi-harmonic twinkling (like real stars in space)
 				float wave1 = (float)Math.Sin(time * stars[i].TwinkleSpeed + stars[i].Phase);
 				float wave2 = (float)Math.Sin(time * (stars[i].TwinkleSpeed * 1.618f) + stars[i].SecondaryPhase);
@@ -203,9 +212,6 @@ namespace AutomataMusic.UI
 				float shimmer = (float)Math.Pow(norm, 1.65); // Momentary glints, serene rest periods
 
 				float alpha = MathHelper.Clamp(stars[i].BaseAlpha * (0.22f + 0.92f * shimmer), 0f, 1f);
-
-				int sx = (int)(stars[i].Position.X * (screenW / 1920f));
-				int sy = (int)(stars[i].Position.Y * (screenH / 1080f));
 				int sz = (int)Math.Max(1f, stars[i].Size * (screenW / 1920f));
 
 				// For brighter foreground stars during a bright glint, render a subtle soft glow halo
@@ -228,22 +234,19 @@ namespace AutomataMusic.UI
 			Texture2D earth = earthTexture.Value;
 
 			// Orbital drift: Earth slowly shifts gently across the viewport
-			float driftX = (float)Math.Sin(time * 0.05f) * 20f;
-			float driftY = (float)Math.Cos(time * 0.04f) * 10f;
+			float driftX = (float)Math.Sin(time * 0.05f) * 16f;
+			float driftY = (float)Math.Cos(time * 0.04f) * 8f;
 
-			// Position Earth so it is "not too close"
-			// The curved blue atmospheric horizon rests gracefully across the lower-center of the screen
-			int eW = (int)(screenW * 1.15f);
-			int eH = (int)(eW * (earth.Height / (float)earth.Width));
+			// Aspect-fill covering 100% of the viewport with a slight overscan margin (+5%)
+			// so that slow celestial orbital drift never exposes any canvas edges
+			float scale = Math.Max(screenW / (float)earth.Width, screenH / (float)earth.Height) * 1.05f;
+			int eW = (int)(earth.Width * scale);
+			int eH = (int)(earth.Height * scale);
 			int eX = (int)((screenW - eW) / 2f + driftX);
-			// Lowered so the top ~50% of the screen is deep space and the curved planet spans the bottom half
-			int eY = (int)(screenH * 0.28f + driftY);
+			int eY = (int)((screenH - eH) / 2f + driftY);
 
 			Rectangle earthDest = new Rectangle(eX, eY, eW, eH);
-
-			// Atmospheric blue glow feather on top of Earth
-			Color earthColor = new Color(195, 205, 220) * 0.82f;
-			sb.Draw(earth, earthDest, earthColor);
+			sb.Draw(earth, earthDest, Color.White);
 		}
 
 		private static void DrawEmbers(SpriteBatch sb, Texture2D pixel, float time, int screenW, int screenH)

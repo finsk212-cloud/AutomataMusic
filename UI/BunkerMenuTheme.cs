@@ -1,143 +1,23 @@
 using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using ReLogic.Content;
 using ReLogic.Graphics;
 using Terraria;
 using Terraria.GameContent;
-using Terraria.ModLoader;
 
 namespace AutomataMusic.UI
 {
 	public static class BunkerMenuTheme
 	{
-		private struct Particle
-		{
-			public Vector2 Position;
-			public float SpeedY;
-			public float SpeedX;
-			public float Size;
-			public float BaseAlpha;
-			public float Phase;
-		}
-
-		private struct Star
-		{
-			public Vector2 Position;
-			public float DriftSpeedX;
-			public float DriftSpeedY;
-			public float BaseAlpha;
-			public float TwinkleSpeed;
-			public float Phase;
-			public float SecondaryPhase;
-			public float Size;
-			public Color StarColor;
-			public int Layer;
-		}
-
-		// Textures
-		private static Asset<Texture2D> earthTexture = null;
-
-		// Systems
-		private static readonly Particle[] particles = new Particle[32];
-		private static readonly Star[] stars = new Star[120];
-		private static bool initialized = false;
-
 		// FX
 		private static float scanLineY = 0f;
 		private static float glitchTimer = 0f;
 		private static float glitchIntensity = 0f;
 
-		private static void InitializeSystems()
-		{
-			var rand = new Random(11945);
-
-			// Floating digital embers
-			for (int i = 0; i < particles.Length; i++)
-			{
-				particles[i] = new Particle
-				{
-					Position = new Vector2((float)rand.NextDouble() * 1920f, (float)rand.NextDouble() * 1080f),
-					SpeedY = 0.20f + (float)rand.NextDouble() * 0.40f,
-					SpeedX = -0.1f + (float)rand.NextDouble() * 0.2f,
-					Size = 1.5f + (float)rand.NextDouble() * 2.0f,
-					BaseAlpha = 0.15f + (float)rand.NextDouble() * 0.35f,
-					Phase = (float)rand.NextDouble() * MathHelper.TwoPi
-				};
-			}
-
-			// Realistic twinkling & faintly drifting stars across 3 depth layers
-			for (int i = 0; i < stars.Length; i++)
-			{
-				float layerRand = (float)rand.NextDouble();
-				int layer = layerRand < 0.65f ? 0 : (layerRand < 0.90f ? 1 : 2);
-
-				float size = layer switch
-				{
-					0 => 1f,
-					1 => 1.5f,
-					_ => 2f
-				};
-
-				float baseAlpha = layer switch
-				{
-					0 => 0.18f + (float)rand.NextDouble() * 0.28f,
-					1 => 0.38f + (float)rand.NextDouble() * 0.35f,
-					_ => 0.65f + (float)rand.NextDouble() * 0.35f
-				};
-
-				// Ultra-slow celestial parallax drift (slowly panning across deep space)
-				float driftSpeedX = (layer + 1) * (0.015f + (float)rand.NextDouble() * 0.025f);
-				float driftSpeedY = (layer + 1) * (-0.006f + (float)rand.NextDouble() * 0.012f);
-
-				// Natural stellar color spectrum (cool diamond blue, pure white, faint golden white, pale silver)
-				Color starColor = rand.Next(4) switch
-				{
-					0 => new Color(210, 228, 255), // Cool diamond blue
-					1 => new Color(255, 252, 245), // Pure stellar white
-					2 => new Color(255, 242, 218), // Warm golden dwarf
-					_ => new Color(225, 232, 250)  // Pale silver
-				};
-
-				stars[i] = new Star
-				{
-					Position = new Vector2((float)rand.NextDouble() * 1920f, (float)rand.NextDouble() * 1080f),
-					DriftSpeedX = driftSpeedX,
-					DriftSpeedY = driftSpeedY,
-					BaseAlpha = baseAlpha,
-					TwinkleSpeed = 0.9f + (float)rand.NextDouble() * 2.4f,
-					Phase = (float)rand.NextDouble() * MathHelper.TwoPi,
-					SecondaryPhase = (float)rand.NextDouble() * MathHelper.TwoPi,
-					Size = size,
-					StarColor = starColor,
-					Layer = layer
-				};
-			}
-
-			initialized = true;
-		}
-
-		private static void EnsureTexturesLoaded()
-		{
-			try
-			{
-				if (earthTexture == null)
-					earthTexture = ModContent.Request<Texture2D>("AutomataMusic/Assets/Textures/Earth", AssetRequestMode.ImmediateLoad);
-			}
-			catch
-			{
-			}
-		}
+		public static void Unload() => OrbitalBackdrop.Unload();
 
 		public static void Draw(SpriteBatch sb, Vector2 logoDrawCenter)
 		{
-			if (!initialized)
-			{
-				InitializeSystems();
-			}
-
-			EnsureTexturesLoaded();
-
 			Texture2D pixel = TextureAssets.MagicPixel.Value;
 			if (pixel == null)
 				return;
@@ -159,118 +39,20 @@ namespace AutomataMusic.UI
 				if (glitchIntensity < 0f) glitchIntensity = 0f;
 			}
 
-			// 1. Deep Space Base Canvas (#01090c matching deep space)
-			sb.Draw(pixel, new Rectangle(0, 0, screenW, screenH), new Color(1, 9, 12));
+			// 1. Fully procedural orbital scene (rotating Earth, sunrise, nebula, stars, moon)
+			OrbitalBackdrop.Draw(sb, pixel, screenW, screenH);
 
-			// 2. Full-Screen Orbital Earth & Cosmos Panorama (Seamless edge-to-edge)
-			DrawEarth(sb, pixel, time, screenW, screenH);
-
-			// 3. Twinkling Background Stars (Organic depth & celestial shimmer over space)
-			DrawStars(sb, pixel, time, screenW, screenH);
-
-			// 4. Tactical Gridlines (54px spacing) with micro-crosshairs
+			// 2. Tactical Gridlines (54px spacing) with micro-crosshairs
 			DrawTacticalGrid(sb, pixel, screenW, screenH);
 
-			// 5. Floating Digital Atmospheric Dust / Embers drifting upward
-			DrawEmbers(sb, pixel, time, screenW, screenH);
-
-			// 7. Subtle CRT Scanlines & Radar Sweep
+			// 3. Subtle CRT Scanlines & Radar Sweep
 			DrawScanlinesAndRadar(sb, pixel, screenW, screenH);
 
-			// 8. Tactical YoRHa Military HUD Framing (Unchanged, clean corner alignment)
+			// 4. Tactical YoRHa Military HUD Framing (Unchanged, clean corner alignment)
 			DrawTacticalFrame(sb, pixel, screenW, screenH, time);
 
-			// 9. NieR:Automata Stylized Title Card / Logo
+			// 5. NieR:Automata Stylized Title Card / Logo
 			DrawNierTitleCard(sb, pixel, screenW, logoDrawCenter);
-		}
-
-		private static void DrawStars(SpriteBatch sb, Texture2D pixel, float time, int screenW, int screenH)
-		{
-			for (int i = 0; i < stars.Length; i++)
-			{
-				// Faint celestial drift (moves slowly across space)
-				stars[i].Position.X += stars[i].DriftSpeedX;
-				stars[i].Position.Y += stars[i].DriftSpeedY;
-				if (stars[i].Position.X > 1920f) stars[i].Position.X -= 1920f;
-				if (stars[i].Position.X < 0f) stars[i].Position.X += 1920f;
-				if (stars[i].Position.Y > 1080f) stars[i].Position.Y -= 1080f;
-				if (stars[i].Position.Y < 0f) stars[i].Position.Y += 1080f;
-
-				int sx = (int)(stars[i].Position.X * (screenW / 1920f));
-				int sy = (int)(stars[i].Position.Y * (screenH / 1080f));
-
-				// Only render twinkling stars in space, not across the planetary surface of Earth
-				float normX = (sx - screenW * 0.5f) / (screenW * 0.5f);
-				float horizonY = screenH * (0.59f + 0.25f * (normX * normX));
-				if (sy > horizonY)
-					continue;
-
-				// Organic multi-harmonic twinkling (like real stars in space)
-				float wave1 = (float)Math.Sin(time * stars[i].TwinkleSpeed + stars[i].Phase);
-				float wave2 = (float)Math.Sin(time * (stars[i].TwinkleSpeed * 1.618f) + stars[i].SecondaryPhase);
-				float norm = (wave1 * 0.65f + wave2 * 0.35f + 1f) * 0.5f; // [0, 1]
-				float shimmer = (float)Math.Pow(norm, 1.65); // Momentary glints, serene rest periods
-
-				float alpha = MathHelper.Clamp(stars[i].BaseAlpha * (0.22f + 0.92f * shimmer), 0f, 1f);
-				int sz = (int)Math.Max(1f, stars[i].Size * (screenW / 1920f));
-
-				// For brighter foreground stars during a bright glint, render a subtle soft glow halo
-				if (stars[i].Layer == 2 && shimmer > 0.60f)
-				{
-					float haloStrength = (shimmer - 0.60f) * 2.5f;
-					Color haloCol = stars[i].StarColor * (alpha * haloStrength * 0.22f);
-					sb.Draw(pixel, new Rectangle(sx - 1, sy - 1, sz + 2, sz + 2), haloCol);
-				}
-
-				sb.Draw(pixel, new Rectangle(sx, sy, sz, sz), stars[i].StarColor * alpha);
-			}
-		}
-
-		private static void DrawEarth(SpriteBatch sb, Texture2D pixel, float time, int screenW, int screenH)
-		{
-			if (earthTexture == null || !earthTexture.IsLoaded || earthTexture.Value == null)
-				return;
-
-			Texture2D earth = earthTexture.Value;
-
-			// Orbital drift: Earth slowly shifts gently across the viewport
-			float driftX = (float)Math.Sin(time * 0.05f) * 16f;
-			float driftY = (float)Math.Cos(time * 0.04f) * 8f;
-
-			// Aspect-fill covering 100% of the viewport with a slight overscan margin (+5%)
-			// so that slow celestial orbital drift never exposes any canvas edges
-			float scale = Math.Max(screenW / (float)earth.Width, screenH / (float)earth.Height) * 1.05f;
-			int eW = (int)(earth.Width * scale);
-			int eH = (int)(earth.Height * scale);
-			int eX = (int)((screenW - eW) / 2f + driftX);
-			int eY = (int)((screenH - eH) / 2f + driftY);
-
-			Rectangle earthDest = new Rectangle(eX, eY, eW, eH);
-			sb.Draw(earth, earthDest, Color.White);
-		}
-
-		private static void DrawEmbers(SpriteBatch sb, Texture2D pixel, float time, int screenW, int screenH)
-		{
-			Color emberColor = new Color(230, 222, 195);
-			for (int i = 0; i < particles.Length; i++)
-			{
-				particles[i].Position.Y -= particles[i].SpeedY;
-				particles[i].Position.X += (float)Math.Sin(time + particles[i].Phase) * 0.3f + particles[i].SpeedX;
-
-				if (particles[i].Position.Y < -10f)
-				{
-					particles[i].Position.Y = screenH + 10f;
-					particles[i].Position.X = (float)(new Random(i + (int)Main.timeForVisualEffects).NextDouble() * screenW);
-				}
-				if (particles[i].Position.X < -10f) particles[i].Position.X = screenW + 10f;
-				if (particles[i].Position.X > screenW + 10f) particles[i].Position.X = -10f;
-
-				float pulse = (float)Math.Sin(time * 2f + particles[i].Phase) * 0.25f + 0.75f;
-				float alpha = particles[i].BaseAlpha * pulse;
-				int pSize = (int)particles[i].Size;
-
-				sb.Draw(pixel, new Rectangle((int)particles[i].Position.X, (int)particles[i].Position.Y, pSize, pSize), emberColor * alpha);
-			}
 		}
 
 		private static void DrawScanlinesAndRadar(SpriteBatch sb, Texture2D pixel, int screenW, int screenH)

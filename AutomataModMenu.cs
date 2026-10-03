@@ -40,5 +40,10 @@ namespace AutomataMusic
 				MenuLyrics.DrawLyrics(spriteBatch, currentTime, 1f);
 			}
 		}
+
+		public override void Unload()
+		{
+			BunkerMenuTheme.Unload();
+		}
 	}
 }

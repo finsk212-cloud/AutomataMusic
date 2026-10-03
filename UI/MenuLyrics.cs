@@ -86,17 +86,17 @@ namespace AutomataMusic.UI
 				"Dounika shite, watashitachi zen'in o sukuetara ii no ni",
 				"I wish that someway, somehow that I could save every one of us"),
 
-			new LyricEntry(102.0f, 108.0f,
+			new LyricEntry(102.0f, 106.5f,
 				"でも本当は、私はただの一人の少女にすぎない",
 				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
 				"But the truth is that I'm only one girl"),
 
-			new LyricEntry(108.5f, 116.0f,
+			new LyricEntry(107.0f, 115.5f,
 				"信じ続ければ、いつか夢は叶うのだろうか",
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(118.5f, 124.0f,
+			new LyricEntry(116.8f, 121.5f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
@@ -158,48 +158,30 @@ namespace AutomataMusic.UI
 				"Dounika shite, watashitachi zen'in o sukuetara ii no ni",
 				"I wish that someway, somehow that I could save every one of us"),
 
-			new LyricEntry(209.0f, 215.0f,
+			new LyricEntry(209.0f, 213.5f,
 				"でも本当は、私はただの一人の少女にすぎない",
 				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
 				"But the truth is that I'm only one girl"),
 
-			new LyricEntry(215.5f, 222.0f,
+			new LyricEntry(214.0f, 222.5f,
 				"信じ続ければ、いつか夢は叶うのだろうか",
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(224.5f, 228.0f,
+			new LyricEntry(223.0f, 227.5f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
 
-			// Bridge
-			new LyricEntry(228.0f, 234.5f,
-				"意味などないとしても、大声で叫び続ける",
-				"Imi nado nai to shite mo, oogoe de sakebitsuzukeru",
-				"'Cause we're gonna shout it loud, even if our words seem meaningless"),
+			// Instrumental Solo (227.5s - 251.0s / 3:48 - 4:11) - Guitar & orchestral solo, no lyrics
 
-			new LyricEntry(235.0f, 241.5f,
-				"世界の重荷を背負っているかのように",
-				"Sekai no omoni o seotte iru ka no you ni",
-				"It's like I'm carrying the weight of the world"),
-
-			new LyricEntry(242.0f, 248.5f,
-				"どうにかして、私たち全員を救えたらいいのに",
-				"Dounika shite, watashitachi zen'in o sukuetara ii no ni",
-				"I wish that someway, somehow that I could save every one of us"),
-
-			new LyricEntry(249.0f, 255.5f,
-				"でも本当は、私はただの一人の少女にすぎない",
-				"Demo hontou wa, watashi wa tada no hitori no shoujo ni suginai",
-				"But the truth is that I'm only one girl"),
-
-			new LyricEntry(256.0f, 262.5f,
+			// Bridge (Vocals resume softly at 4:11 / 251.0s)
+			new LyricEntry(251.0f, 259.0f,
 				"信じ続ければ、いつか夢は叶うのだろうか",
 				"Shinjitsuzukereba, itsuka yume wa kanau no darou ka",
 				"Maybe if I keep believing, my dreams will come to life"),
 
-			new LyricEntry(263.5f, 267.0f,
+			new LyricEntry(260.0f, 266.5f,
 				"叶うのだろうか…",
 				"Kanau no darou ka...",
 				"Come to life..."),
@@ -310,23 +292,21 @@ namespace AutomataMusic.UI
 			// Position below the main buttons, near the bottom of the screen
 			float posY = Main.screenHeight - 82f;
 
-			// Draw subtle, soft horizontal vignette backing
+			// Clean seamless NieR HUD panel backing (no sliced seams/bars)
 			Texture2D pixel = TextureAssets.MagicPixel.Value;
-			float bannerW = maxWidth + 80f;
+			float bannerW = maxWidth + 70f;
 			float bannerH = 50f;
-			float bannerX = centerX - bannerW / 2f;
+			Rectangle bannerRect = new Rectangle((int)(centerX - bannerW / 2f), (int)posY - 4, (int)bannerW, (int)bannerH);
 
-			// Soft dark background pill with smooth left/right gradient
-			int slices = 20;
-			float sliceW = bannerW / slices;
-			for (int i = 0; i < slices; i++)
-			{
-				float norm = i / (float)slices; // 0 to 1
-				float curve = (float)Math.Sin(norm * Math.PI);
-				float bgA = curve * 0.75f * lineAlpha;
-				Rectangle r = new Rectangle((int)(bannerX + i * sliceW), (int)posY - 4, (int)(sliceW + 1f), (int)bannerH);
-				sb.Draw(pixel, r, new Color(10, 10, 14) * bgA);
-			}
+			// Solid translucent slate background
+			sb.Draw(pixel, bannerRect, new Color(12, 12, 16) * (0.82f * lineAlpha));
+
+			// Fine NieR beige border
+			Color borderColor = new Color(185, 175, 150) * (0.45f * lineAlpha);
+			sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, bannerRect.Width, 1), borderColor);
+			sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - 1, bannerRect.Width, 1), borderColor);
+			sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, 1, bannerRect.Height), borderColor);
+			sb.Draw(pixel, new Rectangle(bannerRect.Right - 1, bannerRect.Y, 1, bannerRect.Height), borderColor);
 
 			// Line 1: Japanese / Romaji (Warm glowing NieR beige)
 			Vector2 topPos = new Vector2(centerX - topSize.X / 2f, posY);

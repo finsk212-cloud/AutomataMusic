@@ -15,8 +15,10 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		// High priority so vanilla Day, Alt Day, Morning, and low-priority biome ties never overwrite it
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		// BossLow priority ensures it overrides all vanilla and Calamity biome/environment music (Priority 1-5)
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -25,6 +27,14 @@ namespace AutomataMusic.SceneEffects.Biomes
 				return false;
 
 			if (!MusicHelper.HasAnyTrack(Mod, Tracks))
+				return false;
+
+			// Yield to Rain, Town, or Windy if active
+			if (cfg.ReplaceRainThemes && Main.raining)
+				return false;
+			if (cfg.ReplaceTownThemes && player.townNPCs >= 1f)
+				return false;
+			if (cfg.ReplaceWindyThemes && (Main.IsItAHappyWindyDay || Math.Abs(Main.windSpeedCurrent) >= 20f))
 				return false;
 
 			return player.ZoneOverworldHeight
@@ -49,7 +59,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -58,6 +70,12 @@ namespace AutomataMusic.SceneEffects.Biomes
 				return false;
 
 			if (!MusicHelper.HasAnyTrack(Mod, Tracks))
+				return false;
+
+			// Yield to Rain or Town if active
+			if (cfg.ReplaceRainThemes && Main.raining)
+				return false;
+			if (cfg.ReplaceTownThemes && player.townNPCs >= 1f)
 				return false;
 
 			return player.ZoneOverworldHeight
@@ -82,8 +100,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		// Environment priority so it reliably overrides vanilla town music
-		public override SceneEffectPriority Priority => SceneEffectPriority.Environment;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -116,8 +135,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		// Environment priority to cleanly take precedence over vanilla rain
-		public override SceneEffectPriority Priority => SceneEffectPriority.Environment;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -150,7 +170,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -163,6 +185,7 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 			return player.ZoneOverworldHeight
 				&& Main.dayTime
+				&& !Main.raining
 				&& (Main.IsItAHappyWindyDay || Math.Abs(Main.windSpeedCurrent) >= 20f)
 				&& !player.ZoneDesert
 				&& !player.ZoneSnow
@@ -184,7 +207,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -216,7 +241,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -241,7 +268,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -266,7 +295,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -291,7 +322,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -316,7 +349,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -341,8 +376,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		// Environment priority so it overrides vanilla graveyard
-		public override SceneEffectPriority Priority => SceneEffectPriority.Environment;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -367,7 +403,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -392,7 +430,9 @@ namespace AutomataMusic.SceneEffects.Biomes
 
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
-		public override SceneEffectPriority Priority => SceneEffectPriority.Event;
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossLow;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{

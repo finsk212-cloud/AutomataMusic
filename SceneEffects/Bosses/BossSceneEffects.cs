@@ -17,6 +17,8 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
+		public override float GetWeight(Player player) => 1f;
+
 		public override bool IsSceneEffectActive(Player player)
 		{
 			if (!AutomataMusicConfig.Instance.ReplaceBossThemes)
@@ -46,6 +48,8 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
+		public override float GetWeight(Player player) => 1f;
+
 		public override bool IsSceneEffectActive(Player player)
 		{
 			if (!AutomataMusicConfig.Instance.ReplaceBossThemes)
@@ -70,6 +74,8 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
+		public override float GetWeight(Player player) => 1f;
+
 		public override bool IsSceneEffectActive(Player player)
 		{
 			if (!AutomataMusicConfig.Instance.ReplaceBossThemes)
@@ -93,6 +99,8 @@ namespace AutomataMusic.SceneEffects.Bosses
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
 		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -121,6 +129,8 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
+		public override float GetWeight(Player player) => 1f;
+
 		public override bool IsSceneEffectActive(Player player)
 		{
 			if (!AutomataMusicConfig.Instance.ReplaceBossThemes)
@@ -144,6 +154,8 @@ namespace AutomataMusic.SceneEffects.Bosses
 		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
 
 		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
+
+		public override float GetWeight(Player player) => 1f;
 
 		public override bool IsSceneEffectActive(Player player)
 		{
@@ -172,6 +184,8 @@ namespace AutomataMusic.SceneEffects.Bosses
 
 		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
 
+		public override float GetWeight(Player player) => 1f;
+
 		public override bool IsSceneEffectActive(Player player)
 		{
 			if (!AutomataMusicConfig.Instance.ReplaceBossThemes)
@@ -181,6 +195,41 @@ namespace AutomataMusic.SceneEffects.Bosses
 				return false;
 
 			return NPC.AnyNPCs(NPCID.MoonLordCore);
+		}
+	}
+
+	/// <summary>
+	/// Fallback for ANY active boss (including Calamity, Thorium, or any other modded bosses).
+	/// Default track candidates: "PossessedByDisease", "AlienManifestation"
+	/// </summary>
+	public class GenericBossSceneEffect : ModSceneEffect
+	{
+		private static readonly string[] Tracks = { "Assets/Music/PossessedByDisease", "Assets/Music/AlienManifestation" };
+
+		public override int Music => MusicHelper.GetTrackWithCandidates(Mod, Tracks);
+
+		public override SceneEffectPriority Priority => SceneEffectPriority.BossHigh;
+
+		public override float GetWeight(Player player) => 0.9f; // Specific bosses have 1.0f
+
+		public override bool IsSceneEffectActive(Player player)
+		{
+			if (!AutomataMusicConfig.Instance.ReplaceBossThemes)
+				return false;
+
+			if (!MusicHelper.HasAnyTrack(Mod, Tracks))
+				return false;
+
+			for (int i = 0; i < Main.maxNPCs; i++)
+			{
+				NPC npc = Main.npc[i];
+				if (npc != null && npc.active && (npc.boss || npc.type == NPCID.EaterofWorldsHead))
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}
 	}
 }

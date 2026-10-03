@@ -32,7 +32,6 @@ namespace AutomataMusic.UI
 
 		// Textures
 		private static Asset<Texture2D> earthTexture = null;
-		private static Asset<Texture2D> bunkerTexture = null;
 
 		// Systems
 		private static readonly Particle[] particles = new Particle[32];
@@ -84,8 +83,6 @@ namespace AutomataMusic.UI
 			{
 				if (earthTexture == null)
 					earthTexture = ModContent.Request<Texture2D>("AutomataMusic/Assets/Textures/Earth", AssetRequestMode.ImmediateLoad);
-				if (bunkerTexture == null)
-					bunkerTexture = ModContent.Request<Texture2D>("AutomataMusic/Assets/Textures/Bunker", AssetRequestMode.ImmediateLoad);
 			}
 			catch
 			{
@@ -134,10 +131,7 @@ namespace AutomataMusic.UI
 			// 4. Tactical Gridlines (54px spacing) with micro-crosshairs
 			DrawTacticalGrid(sb, pixel, screenW, screenH);
 
-			// 5. The Bunker Spaceship (Hovering & Smoothly Rotating around its center)
-			DrawYoRHaBunker(sb, pixel, time, screenW, screenH);
-
-			// 6. Floating Digital Atmospheric Dust / Embers drifting upward
+			// 5. Floating Digital Atmospheric Dust / Embers drifting upward
 			DrawEmbers(sb, pixel, time, screenW, screenH);
 
 			// 7. Subtle CRT Scanlines & Radar Sweep
@@ -188,100 +182,6 @@ namespace AutomataMusic.UI
 			// Atmospheric blue glow feather on top of Earth
 			Color earthColor = new Color(195, 205, 220) * 0.82f;
 			sb.Draw(earth, earthDest, earthColor);
-		}
-
-		private static void DrawYoRHaBunker(SpriteBatch sb, Texture2D pixel, float time, int screenW, int screenH)
-		{
-			if (bunkerTexture == null || !bunkerTexture.IsLoaded || bunkerTexture.Value == null)
-				return;
-
-			Texture2D bunker = bunkerTexture.Value;
-			var font = FontAssets.MouseText.Value;
-
-			// Station orbital position: hovering gracefully in space above the Earth's curve
-			float baseCenterX = screenW * 0.50f;
-			float baseCenterY = screenH * 0.38f;
-
-			// Hovering: smooth, gentle vertical orbital float
-			float hoverY = (float)Math.Sin(time * 0.40f) * 7f;
-			float hoverX = (float)Math.Cos(time * 0.28f) * 4f;
-
-			Vector2 bunkerPos = new Vector2(baseCenterX + hoverX, baseCenterY + hoverY);
-
-			// Rotating: smooth, continuous rotation around the central command tower axis
-			float stationRotation = time * 0.025f;
-
-			// Scale: 38% screen width (clean, clear, detailed)
-			float desiredW = screenW * 0.36f;
-			float scale = desiredW / bunker.Width;
-
-			// Center of rotation: precisely at the central command tower (width/2, height/2)
-			Vector2 origin = new Vector2(bunker.Width / 2f, bunker.Height / 2f);
-
-			// Draw the Bunker Spaceship
-			Color shipTint = new Color(235, 238, 245) * 0.95f;
-			sb.Draw(bunker, bunkerPos, null, shipTint, stationRotation, origin, scale, SpriteEffects.None, 0f);
-
-			// Blinking Navigation Beacons rotating seamlessly with the station
-			float rCos = (float)Math.Cos(stationRotation);
-			float rSin = (float)Math.Sin(stationRotation);
-
-			// Beacon 1: Top-Left Solar Array Tip
-			Vector2 b1Local = new Vector2(-bunker.Width * 0.35f, -bunker.Height * 0.28f) * scale;
-			Vector2 b1Pos = bunkerPos + new Vector2(b1Local.X * rCos - b1Local.Y * rSin, b1Local.X * rSin + b1Local.Y * rCos);
-			DrawStationBeacon(sb, pixel, b1Pos, Color.LimeGreen, time * 4.5f);
-
-			// Beacon 2: Top-Right Solar Array Tip
-			Vector2 b2Local = new Vector2(bunker.Width * 0.38f, -bunker.Height * 0.20f) * scale;
-			Vector2 b2Pos = bunkerPos + new Vector2(b2Local.X * rCos - b2Local.Y * rSin, b2Local.X * rSin + b2Local.Y * rCos);
-			DrawStationBeacon(sb, pixel, b2Pos, Color.Gold, time * 3.8f);
-
-			// Beacon 3: Bottom-Left Array Tip
-			Vector2 b3Local = new Vector2(-bunker.Width * 0.32f, bunker.Height * 0.32f) * scale;
-			Vector2 b3Pos = bunkerPos + new Vector2(b3Local.X * rCos - b3Local.Y * rSin, b3Local.X * rSin + b3Local.Y * rCos);
-			DrawStationBeacon(sb, pixel, b3Pos, Color.Cyan, time * 5.0f);
-
-			// Tactical Targeting Brackets around the Station
-			Color bracketColor = new Color(210, 200, 175) * 0.40f;
-			float boxSize = desiredW * 0.88f;
-			int bArm = 14;
-			Rectangle targetBox = new Rectangle((int)(bunkerPos.X - boxSize / 2f), (int)(bunkerPos.Y - boxSize / 2f), (int)boxSize, (int)boxSize);
-
-			// Corner brackets ┌ ┐ └ ┘
-			sb.Draw(pixel, new Rectangle(targetBox.X, targetBox.Y, bArm, 1), bracketColor);
-			sb.Draw(pixel, new Rectangle(targetBox.X, targetBox.Y, 1, bArm), bracketColor);
-			sb.Draw(pixel, new Rectangle(targetBox.Right - bArm, targetBox.Y, bArm, 1), bracketColor);
-			sb.Draw(pixel, new Rectangle(targetBox.Right - 1, targetBox.Y, 1, bArm), bracketColor);
-			sb.Draw(pixel, new Rectangle(targetBox.X, targetBox.Bottom - 1, bArm, 1), bracketColor);
-			sb.Draw(pixel, new Rectangle(targetBox.X, targetBox.Bottom - bArm, 1, bArm), bracketColor);
-			sb.Draw(pixel, new Rectangle(targetBox.Right - bArm, targetBox.Bottom - 1, bArm, 1), bracketColor);
-			sb.Draw(pixel, new Rectangle(targetBox.Right - 1, targetBox.Bottom - 1, bArm, 1), bracketColor);
-
-			// Tactical Telemetry Tag
-			if (font != null)
-			{
-				float tagScale = 0.52f;
-				string bunkerTag = MenuLyrics.CheckCjkSupport(font)
-					? "[ 軌道衛星バンカー // YoRHa 13th BASE \"BUNKER\" ]"
-					: "[ YoRHa 13th ORBITAL BASE // \"BUNKER\" ]";
-				string statusTag = "STATUS: GEO-STATIONARY ORBIT // ATTITUDE: ROTATING // ALL SYSTEMS NOMINAL";
-
-				Vector2 bTagSize = font.MeasureString(bunkerTag) * tagScale;
-				Vector2 sTagSize = font.MeasureString(statusTag) * (tagScale * 0.88f);
-
-				Vector2 tagPos = new Vector2(targetBox.Center.X - bTagSize.X / 2f, targetBox.Bottom + 6);
-				Utils.DrawBorderString(sb, bunkerTag, tagPos, new Color(230, 220, 195) * 0.80f, tagScale);
-				Utils.DrawBorderString(sb, statusTag, new Vector2(targetBox.Center.X - sTagSize.X / 2f, tagPos.Y + 14), new Color(175, 170, 155) * 0.65f, tagScale * 0.88f);
-			}
-		}
-
-		private static void DrawStationBeacon(SpriteBatch sb, Texture2D pixel, Vector2 pos, Color color, float pulseTime)
-		{
-			float pulse = (float)Math.Sin(pulseTime) * 0.5f + 0.5f;
-			if (pulse > 0.35f)
-			{
-				sb.Draw(pixel, new Rectangle((int)pos.X - 1, (int)pos.Y - 1, 3, 3), color * pulse);
-			}
 		}
 
 		private static void DrawEmbers(SpriteBatch sb, Texture2D pixel, float time, int screenW, int screenH)

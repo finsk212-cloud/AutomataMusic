@@ -203,9 +203,9 @@ namespace AutomataMusic.UI
 				"Still, we're gonna shout it loud, even if our words seem meaningless"),
 
 			new LyricEntry(289.5f, 296.0f,
-				"世界の重荷を背負っているかのように",
-				"Sekai no omoni o seotte iru ka no you ni",
-				"Like I'm carrying the weight of the world"),
+				"まるで世界の重荷を背負っているかのように",
+				"Marude sekai no omoni o seotte iru ka no you ni",
+				"It's like I'm carrying the weight of the world"),
 
 			new LyricEntry(296.5f, 303.0f,
 				"どうか私たち全員を救えますように",

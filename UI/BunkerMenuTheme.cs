@@ -11,10 +11,10 @@ namespace AutomataMusic.UI
 	{
 		// FX
 		private static float glitchTimer = 0f;
-		private static float nextGlitchInterval = 6.5f;
+		private static float nextGlitchInterval = 3.2f;
 		private static float glitchIntensity = 0f;
 		private static float microGlitchTimer = 0f;
-		private static float nextMicroInterval = 2.4f;
+		private static float nextMicroInterval = 1.1f;
 
 		public static void Unload() => OrbitalBackdrop.Unload();
 
@@ -32,37 +32,34 @@ namespace AutomataMusic.UI
 			glitchTimer += 0.016f;
 			microGlitchTimer += 0.016f;
 
-			// Quick subtle micro-twitch every 2.0 - 3.8 seconds
+			// Frequent micro-twitches every 0.9 - 2.0 seconds
 			if (microGlitchTimer > nextMicroInterval)
 			{
 				microGlitchTimer = 0f;
-				nextMicroInterval = 2.0f + (float)Main.rand.NextDouble() * 1.8f;
-				if (glitchIntensity < 0.35f)
-					glitchIntensity = 0.42f;
+				nextMicroInterval = 0.9f + (float)Main.rand.NextDouble() * 1.1f;
+				if (glitchIntensity < 0.45f)
+					glitchIntensity = 0.55f;
 			}
 
-			// Major system desync / EMP glitch burst every 5.5 - 8.5 seconds
+			// Major system desync & "AUTOMATA" title glitch every 2.8 - 4.6 seconds
 			if (glitchTimer > nextGlitchInterval)
 			{
 				glitchTimer = 0f;
-				nextGlitchInterval = 5.5f + (float)Main.rand.NextDouble() * 3.0f;
+				nextGlitchInterval = 2.8f + (float)Main.rand.NextDouble() * 1.8f;
 				glitchIntensity = 1.0f;
 			}
 
 			// Organic recovery decay
 			if (glitchIntensity > 0f)
 			{
-				glitchIntensity -= 0.045f;
+				glitchIntensity -= 0.035f;
 				if (glitchIntensity < 0f) glitchIntensity = 0f;
 			}
 
 			// 1. Fully procedural orbital scene (rotating Earth, sunrise, nebula, stars, moon)
 			OrbitalBackdrop.Draw(sb, pixel, screenW, screenH);
 
-			// 2. Subtle CRT Scanlines
-			DrawScanlines(sb, pixel, screenW, screenH);
-
-			// 3. Tactical YoRHa Military Corner Brackets
+			// 2. Tactical YoRHa Military Corner Brackets
 			DrawTacticalFrame(sb, pixel, screenW, screenH, time);
 
 			// 4. NieR:Automata Stylized Title Card / Logo
@@ -175,22 +172,33 @@ namespace AutomataMusic.UI
 			}
 		}
 
-		private static string GetGlitchTitle(string original, float intensity, float time)
+		private static string GetGlitchTitle(string original, float intensity, float time, out bool isAutomata)
 		{
-			if (intensity < 0.22f)
+			isAutomata = false;
+			if (intensity < 0.15f)
 				return original;
 
-			char[] chars = original.ToCharArray();
-			int seed = (int)(time * 18f);
+			int seed = (int)(time * 22f);
 			Random gRand = new Random(seed);
 
+			// Glitch into "A U T O M A T A" for split seconds during peak glitch
+			string target = original;
+			if (intensity > 0.45f && (seed % 5 == 0 || seed % 7 == 0))
+			{
+				isAutomata = true;
+				target = "A U T O M A T A";
+			}
+
+			char[] chars = target.ToCharArray();
 			const string glitchPool = "01X_#@!$?%*[]/\\";
+
 			for (int i = 0; i < chars.Length; i++)
 			{
 				if (chars[i] == ' ')
 					continue;
 
-				if (gRand.NextDouble() < intensity * 0.40f)
+				// Chance to corrupt individual character into cyber glyph
+				if (gRand.NextDouble() < intensity * 0.50f)
 				{
 					chars[i] = glitchPool[gRand.Next(glitchPool.Length)];
 				}
@@ -199,22 +207,24 @@ namespace AutomataMusic.UI
 			return new string(chars);
 		}
 
-		private static string GetGlitchKatakana(string original, float intensity, float time)
+		private static string GetGlitchKatakana(string original, float intensity, float time, bool isAutomata)
 		{
-			if (intensity < 0.28f)
+			if (intensity < 0.20f)
 				return original;
 
-			char[] chars = original.ToCharArray();
-			int seed = (int)(time * 16f) + 107;
+			int seed = (int)(time * 20f) + 107;
 			Random gRand = new Random(seed);
 
-			const string kataGlitch = "01_#X/テラリア";
+			string target = isAutomata ? " / オートマタ" : original;
+			char[] chars = target.ToCharArray();
+
+			const string kataGlitch = "01_#X/テラリアオートマタ";
 			for (int i = 0; i < chars.Length; i++)
 			{
 				if (chars[i] == ' ' || chars[i] == '/')
 					continue;
 
-				if (gRand.NextDouble() < intensity * 0.45f)
+				if (gRand.NextDouble() < intensity * 0.55f)
 				{
 					chars[i] = kataGlitch[gRand.Next(kataGlitch.Length)];
 				}
@@ -234,7 +244,7 @@ namespace AutomataMusic.UI
 			float effectiveGlitch = glitchIntensity;
 			if (effectiveGlitch > 0.04f)
 			{
-				float crackle = (float)(Math.Sin(time * 38f) * 0.35 + Math.Sin(time * 62f) * 0.25 + 0.65);
+				float crackle = (float)(Math.Sin(time * 48f) * 0.40 + Math.Sin(time * 75f) * 0.30 + 0.70);
 				effectiveGlitch = MathHelper.Clamp(effectiveGlitch * crackle, 0f, 1f);
 			}
 
@@ -245,8 +255,8 @@ namespace AutomataMusic.UI
 			float jitterY = 0f;
 			if (effectiveGlitch > 0.05f)
 			{
-				jitterX = (float)Math.Sin(time * 32f) * effectiveGlitch * 4.5f;
-				jitterY = (float)Math.Cos(time * 26f) * effectiveGlitch * 2.0f;
+				jitterX = (float)Math.Sin(time * 42f) * effectiveGlitch * 7.5f;
+				jitterY = (float)Math.Cos(time * 34f) * effectiveGlitch * 3.5f;
 			}
 
 			string mainTitle = "T E R R A R I A";
@@ -298,112 +308,100 @@ namespace AutomataMusic.UI
 			sb.Draw(pixel, new Rectangle(cardRect.Right - 2, midY - 2, 3, 5), bracketColor * 0.7f);
 
 			// 4. Horizontal CRT slice scanline displacement across the card during glitches
-			if (effectiveGlitch > 0.22f)
+			if (effectiveGlitch > 0.18f)
 			{
-				int sliceCount = (int)(2 + effectiveGlitch * 3);
+				int sliceCount = (int)(3 + effectiveGlitch * 4);
 				for (int s = 0; s < sliceCount; s++)
 				{
-					int sliceY = cardRect.Y + 6 + (int)(((s + 0.5f) / sliceCount) * (cardRect.Height - 14));
+					int sliceY = cardRect.Y + 4 + (int)(((s + 0.5f) / sliceCount) * (cardRect.Height - 10));
 					int sliceH = 4 + (s * 3) % 7;
-					float shiftDir = (float)Math.Sin(time * 36f + s * 3.14f);
-					int shiftPx = (int)(shiftDir * (5f + effectiveGlitch * 14f));
+					float shiftDir = (float)Math.Sin(time * 42f + s * 2.7f);
+					int shiftPx = (int)(shiftDir * (8f + effectiveGlitch * 20f));
 
 					Rectangle sliceRect = new Rectangle(cardRect.X + shiftPx, sliceY, cardRect.Width, sliceH);
 					sb.Draw(pixel, sliceRect, new Color(14, 15, 20) * 0.95f);
 
 					Color sliceColor = (s % 2 == 0)
-						? new Color(255, 60, 90, 0) * (effectiveGlitch * 0.65f)
-						: new Color(60, 220, 255, 0) * (effectiveGlitch * 0.65f);
+						? new Color(255, 60, 90, 0) * (effectiveGlitch * 0.75f)
+						: new Color(60, 220, 255, 0) * (effectiveGlitch * 0.75f);
 					sb.Draw(pixel, new Rectangle(sliceRect.X, sliceY, sliceRect.Width, 1), sliceColor);
 				}
 			}
 
 			// 5. Digital noise rectangles (bursting machine data corruption)
-			if (effectiveGlitch > 0.35f)
+			if (effectiveGlitch > 0.28f)
 			{
-				Random nRand = new Random((int)(time * 24f));
-				int numBlocks = (int)(3 + effectiveGlitch * 4);
+				Random nRand = new Random((int)(time * 28f));
+				int numBlocks = (int)(4 + effectiveGlitch * 6);
 				for (int b = 0; b < numBlocks; b++)
 				{
-					int bw = nRand.Next(16, 55);
-					int bh = nRand.Next(2, 5);
+					int bw = nRand.Next(18, 65);
+					int bh = nRand.Next(2, 6);
 					int bx = cardRect.X + nRand.Next(Math.Max(1, cardRect.Width - bw));
 					int by = cardRect.Y + nRand.Next(Math.Max(1, cardRect.Height - bh));
 
 					Color nCol = (nRand.Next(3) == 0)
-						? new Color(255, 70, 90, 0) * (effectiveGlitch * 0.85f)
+						? new Color(255, 70, 90, 0) * (effectiveGlitch * 0.90f)
 						: ((nRand.Next(2) == 0)
-							? new Color(80, 230, 255, 0) * (effectiveGlitch * 0.85f)
-							: new Color(250, 245, 230) * (effectiveGlitch * 0.75f));
+							? new Color(80, 230, 255, 0) * (effectiveGlitch * 0.90f)
+							: new Color(250, 245, 230) * (effectiveGlitch * 0.85f));
 
 					sb.Draw(pixel, new Rectangle(bx, by, bw, bh), nCol);
 				}
 			}
 
-			// 6. Sweeping YoRHa tactical laser scan line down the title card
-			float scanProgress = (time * 0.28f) % 1.0f;
-			int scanLineY = cardRect.Y + (int)(scanProgress * cardRect.Height);
-			sb.Draw(pixel, new Rectangle(cardRect.X + 2, scanLineY, cardRect.Width - 4, 1), new Color(225, 218, 195) * 0.28f);
-
-			float scanPipX = cardRect.X + ((time * 0.95f) % 1.0f) * (cardRect.Width - 24);
-			sb.Draw(pixel, new Rectangle((int)scanPipX, scanLineY, 24, 1), new Color(255, 250, 230, 0) * 0.65f);
-
-			// 7. Top Classification Bar inside the card
+			// 6. Top Classification Bar inside the card
 			float hdrScale = 0.52f;
 			string headerText = "[ YoRHa FFCS // PROJECT: TERRARIA // VER. 1.1945 ]";
-			bool isDesync = effectiveGlitch > 0.25f;
-			string statusBadge = isDesync ? "[ ▲ ERR: SIGNAL DESYNC ]" : "[ ● NOMINAL ]";
-			Color statusBadgeCol = isDesync ? new Color(255, 80, 80) : new Color(160, 235, 190);
-
 			Vector2 hdrPos = new Vector2(cardRect.X + 16, cardRect.Y + 7);
 			Utils.DrawBorderString(sb, headerText, hdrPos, new Color(175, 168, 150) * 0.85f, hdrScale);
 
-			Vector2 badgeSize = fontMouse.MeasureString(statusBadge) * hdrScale;
-			Vector2 badgePos = new Vector2(cardRect.Right - 16 - badgeSize.X, cardRect.Y + 7);
-			Utils.DrawBorderString(sb, statusBadge, badgePos, statusBadgeCol * 0.95f, hdrScale);
-
-			// 8. Main Title & Katakana with Character Corruption & Chromatic Split
-			string displayTitle = GetGlitchTitle(mainTitle, effectiveGlitch, time);
+			// 7. Main Title & Katakana with Character Corruption & Chromatic Split
+			string displayTitle = GetGlitchTitle(mainTitle, effectiveGlitch, time, out bool isAutomata);
 			string baseKatakana = MenuLyrics.CheckCjkSupport(fontMouse) ? katakana : " / Terraria";
-			string displayKatakana = GetGlitchKatakana(baseKatakana, effectiveGlitch, time);
+			string displayKatakana = GetGlitchKatakana(baseKatakana, effectiveGlitch, time, isAutomata);
 
 			float textStartX = centerX - totalTitleW / 2f + jitterX;
 			Vector2 titlePos = new Vector2(textStartX, titleY + 6f + jitterY);
 			Vector2 kataPos = new Vector2(textStartX + mainSize.X + 8f, titleY + 18f + jitterY);
 
 			// Chromatic aberration RGB split under glitch
-			if (effectiveGlitch > 0.06f)
+			if (effectiveGlitch > 0.05f)
 			{
-				float splitX = (3.5f + 5.5f * effectiveGlitch) * (float)Math.Sin(time * 30f);
-				float splitY = (float)Math.Cos(time * 24f) * (1.5f * effectiveGlitch);
+				float splitX = (4.5f + 7.5f * effectiveGlitch) * (float)Math.Sin(time * 36f);
+				float splitY = (float)Math.Cos(time * 28f) * (2.2f * effectiveGlitch);
 
 				// Red / Magenta channel shifted left
-				Color redGlitch = new Color(255, 45, 80, 0) * (effectiveGlitch * 0.85f);
+				Color redGlitch = new Color(255, 45, 80, 0) * (effectiveGlitch * 0.92f);
 				Vector2 redPos = titlePos + new Vector2(-splitX, -splitY);
 				sb.DrawString(fontDeath, displayTitle, redPos, redGlitch, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
 
 				// Cyan / Sky-blue channel shifted right
-				Color cyanGlitch = new Color(45, 220, 255, 0) * (effectiveGlitch * 0.85f);
+				Color cyanGlitch = new Color(45, 220, 255, 0) * (effectiveGlitch * 0.92f);
 				Vector2 cyanPos = titlePos + new Vector2(splitX, splitY);
 				sb.DrawString(fontDeath, displayTitle, cyanPos, cyanGlitch, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
 
 				// Katakana chromatic split
-				sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(-splitX * 0.7f, 0f), redGlitch * 0.8f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
-				sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(splitX * 0.7f, 0f), cyanGlitch * 0.8f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
+				sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(-splitX * 0.7f, 0f), redGlitch * 0.85f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
+				sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(splitX * 0.7f, 0f), cyanGlitch * 0.85f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
 			}
 
 			// Drop shadows
 			sb.DrawString(fontDeath, displayTitle, titlePos + new Vector2(2, 2), Color.Black * 0.85f, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
 			sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(1, 1), Color.Black * 0.7f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
 
-			// Core Title Texts
-			Color mainTitleCol = Color.Lerp(new Color(248, 242, 222), new Color(255, 120, 120), effectiveGlitch * 0.35f);
+			// Core Title Texts (flashes red/magenta tint during Automata glitch shift)
+			Color mainTitleCol = isAutomata
+				? new Color(255, 110, 110)
+				: Color.Lerp(new Color(248, 242, 222), new Color(255, 130, 130), effectiveGlitch * 0.40f);
 			sb.DrawString(fontDeath, displayTitle, titlePos, mainTitleCol, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
 
-			Color kataCol = Color.Lerp(new Color(212, 198, 168), new Color(255, 140, 140), effectiveGlitch * 0.35f);
+			Color kataCol = isAutomata
+				? new Color(255, 130, 130)
+				: Color.Lerp(new Color(212, 198, 168), new Color(255, 140, 140), effectiveGlitch * 0.40f);
 			sb.DrawString(fontMouse, displayKatakana, kataPos, kataCol, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
 
-			// 9. Tactical horizontal divider below the main title
+			// 8. Tactical horizontal divider below the main title
 			int divY = (int)(titleY + mainSize.Y + 4f + jitterY);
 			int divW = cardRect.Width - 32;
 			int divX = cardRect.X + 16;
@@ -416,8 +414,9 @@ namespace AutomataMusic.UI
 			sb.Draw(pixel, new Rectangle(divX + (int)(divW * 0.25f), divY - 1, 2, 3), divColor * 0.7f);
 			sb.Draw(pixel, new Rectangle(divX + (int)(divW * 0.75f), divY - 1, 2, 3), divColor * 0.7f);
 
-			// 10. Subtitle line (For the Glory of Mankind)
+			// 9. Subtitle line (For the Glory of Mankind)
 			Vector2 subPos = new Vector2(centerX - subSize.X / 2f + jitterX, divY + 6f);
+			bool isDesync = effectiveGlitch > 0.25f;
 			Color subColor = isDesync ? new Color(245, 130, 120) : new Color(195, 186, 165) * 0.92f;
 			Utils.DrawBorderString(sb, subTitle, subPos, subColor, subScale);
 		}

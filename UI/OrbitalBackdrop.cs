@@ -42,7 +42,16 @@ namespace AutomataMusic.UI
 		private static bool dataStarted;
 		private static bool texturesBuilt;
 		private static float[] landR, landG, landB, cloudMap;
-		private static Color[] nebulaData, moonData;
+		private static Color[] nebulaData;
+
+		private const int MoonMapW = 512;
+		private const int MoonMapH = 256;
+		private static float[] moonAlbedo;
+		private static Color[] moonBuffer;
+		private static int moonPixelCount;
+		private static int[] mMoonIndex, mMoonRowOff, mMoonBaseCol;
+		private static float[] mMoonLightR, mMoonLightG, mMoonLightB;
+		private static byte[] mMoonAlpha;
 
 		private static Texture2D glowTex, gradientTex, nebulaTex, moonTex, planetTex;
 		private static Asset<Texture2D> bunkerTexture;
@@ -141,6 +150,7 @@ namespace AutomataMusic.UI
 				if (cloudRot > MapW) cloudRot -= MapW;
 
 				UpdatePlanet();
+				UpdateMoon();
 
 				sb.Draw(planetTex, new Rectangle(0, bufTop, bufW * bufDiv, bufH * bufDiv), Color.White * planetFade);
 
@@ -162,6 +172,12 @@ namespace AutomataMusic.UI
 			texturesBuilt = false;
 			cachedW = cachedH = -1;
 			Array.Clear(warFlashes, 0, warFlashes.Length);
+			moonAlbedo = null;
+			moonBuffer = null;
+			mMoonIndex = mMoonRowOff = mMoonBaseCol = null;
+			mMoonLightR = mMoonLightG = mMoonLightB = null;
+			mMoonAlpha = null;
+			moonPixelCount = 0;
 			Main.QueueMainThreadAction(() =>
 			{
 				foreach (var t in all)
@@ -291,7 +307,8 @@ namespace AutomataMusic.UI
 			nebulaTex = new Texture2D(gd, NebW, NebH);
 			nebulaTex.SetData(nebulaData);
 			moonTex = new Texture2D(gd, MoonSize, MoonSize);
-			moonTex.SetData(moonData);
+			BuildMoonGeometry();
+			UpdateMoon();
 			texturesBuilt = true;
 		}
 
@@ -423,60 +440,158 @@ namespace AutomataMusic.UI
 			nebulaData = data;
 		}
 
+		private struct MoonCrater
+		{
+			public Vector3 Center;
+			public float Radius;
+		}
+
 		private static void GenerateMoon()
 		{
-			var data = new Color[MoonSize * MoonSize];
 			var rand = new Random(4242);
-			const int CraterCount = 46;
-			var craters = new Vector3[CraterCount];
+			const int CraterCount = 52;
+			var craters = new MoonCrater[CraterCount];
 			for (int i = 0; i < CraterCount; i++)
 			{
-				float r = 0.04f + (float)Math.Pow(rand.NextDouble(), 2.2) * 0.22f;
-				craters[i] = new Vector3((float)rand.NextDouble() * 2f - 1f, (float)rand.NextDouble() * 2f - 1f, r);
+				float theta = (float)(rand.NextDouble() * MathHelper.TwoPi);
+				float phi = (float)(rand.NextDouble() * Math.PI - MathHelper.PiOver2);
+				Vector3 center = new Vector3(
+					(float)(Math.Cos(phi) * Math.Cos(theta)),
+					(float)Math.Sin(phi),
+					(float)(Math.Cos(phi) * Math.Sin(theta))
+				);
+				float r = 0.05f + (float)Math.Pow(rand.NextDouble(), 2.2) * 0.20f;
+				craters[i] = new MoonCrater { Center = center, Radius = r };
 			}
 
-			Vector3 L = Vector3.Normalize(new Vector3(-0.9f, -0.2f, 0.38f));
+			var alb = new float[MoonMapW * MoonMapH];
+
+			for (int y = 0; y < MoonMapH; y++)
+			{
+				double lat = (0.5 - (y + 0.5) / MoonMapH) * Math.PI;
+				float cLat = (float)Math.Cos(lat), sLat = (float)Math.Sin(lat);
+
+				for (int x = 0; x < MoonMapW; x++)
+				{
+					double lon = (x + 0.5) / MoonMapW * Math.PI * 2.0;
+					float px = cLat * (float)Math.Cos(lon);
+					float py = sLat;
+					float pz = cLat * (float)Math.Sin(lon);
+					Vector3 nrm = new Vector3(px, py, pz);
+
+					float maria = SS(0.0f, 0.25f, Fbm(nrm.X * 1.8f + 7f, nrm.Y * 1.8f, nrm.Z * 1.8f, 4));
+					float albedo = 0.74f - maria * 0.28f + Fbm(nrm.X * 8f, nrm.Y * 8f, nrm.Z * 8f, 3) * 0.10f;
+
+					for (int c = 0; c < CraterCount; c++)
+					{
+						float d = (nrm - craters[c].Center).Length() / craters[c].Radius;
+						if (d < 1.3f)
+						{
+							if (d < 1f) albedo -= 0.07f * (1f - d * d);
+							albedo += 0.06f * (float)Math.Exp(-Math.Pow((d - 1f) / 0.13f, 2));
+						}
+					}
+
+					alb[y * MoonMapW + x] = MathHelper.Clamp(albedo, 0.10f, 1f);
+				}
+			}
+
+			moonAlbedo = alb;
+		}
+
+		private static void BuildMoonGeometry()
+		{
+			moonBuffer = new Color[MoonSize * MoonSize];
+			int maxPixels = MoonSize * MoonSize;
+			mMoonIndex = new int[maxPixels];
+			mMoonRowOff = new int[maxPixels];
+			mMoonBaseCol = new int[maxPixels];
+			mMoonLightR = new float[maxPixels];
+			mMoonLightG = new float[maxPixels];
+			mMoonLightB = new float[maxPixels];
+			mMoonAlpha = new byte[maxPixels];
+			moonPixelCount = 0;
+
 			float half = MoonSize / 2f;
+			// Light direction from Sun on the horizon (bottom-left) towards the Moon (upper-right)
+			Vector3 moonSunDir = Vector3.Normalize(new Vector3(-0.85f, 0.45f, 0.30f));
+			Vector3 sunCol = new Vector3(0.92f, 0.90f, 0.86f);
+			Vector3 earthShine = new Vector3(0.045f, 0.065f, 0.095f);
 
 			for (int y = 0; y < MoonSize; y++)
 			{
 				for (int x = 0; x < MoonSize; x++)
 				{
+					int bi = y * MoonSize + x;
 					float dx = (x + 0.5f - half) / (half - 1f);
 					float dy = (y + 0.5f - half) / (half - 1f);
 					float r2 = dx * dx + dy * dy;
-					float r = (float)Math.Sqrt(r2);
-					float cover = MathHelper.Clamp((1f - r) * (half - 1f), 0f, 1f);
-					if (cover <= 0f)
+					if (r2 >= 1f)
 					{
-						data[y * MoonSize + x] = Color.Transparent;
+						moonBuffer[bi] = Color.Transparent;
 						continue;
 					}
 
-					float z = (float)Math.Sqrt(Math.Max(0f, 1f - r2));
+					float r = (float)Math.Sqrt(r2);
+					float cover = MathHelper.Clamp((1f - r) * (half - 1f), 0f, 1f);
+					float z = (float)Math.Sqrt(1f - r2);
 					Vector3 nrm = new Vector3(dx, dy, z);
 
-					float maria = SS(0.0f, 0.25f, Fbm(nrm.X * 1.8f + 7f, nrm.Y * 1.8f, nrm.Z * 1.8f, 4));
-					float albedo = 0.72f - maria * 0.26f + Fbm(nrm.X * 9f, nrm.Y * 9f, nrm.Z * 9f, 3) * 0.10f;
+					float ndl = Vector3.Dot(nrm, moonSunDir);
+					float sunLight = (float)Math.Pow(Math.Max(0f, ndl), 0.85);
+					Vector3 light = sunCol * sunLight + earthShine;
 
-					for (int c = 0; c < CraterCount; c++)
-					{
-						float cdx = dx - craters[c].X, cdy = dy - craters[c].Y;
-						float cd = (float)Math.Sqrt(cdx * cdx + cdy * cdy) / craters[c].Z;
-						if (cd < 1.3f)
-						{
-							if (cd < 1f) albedo -= 0.07f * (1f - cd * cd);
-							albedo += 0.06f * (float)Math.Exp(-Math.Pow((cd - 1f) / 0.13f, 2));
-						}
-					}
+					// Spherical projection (top of Moon is North, so lat is -dy)
+					double lat = Math.Asin(MathHelper.Clamp(-dy, -1f, 1f));
+					double lon = Math.Atan2(dx, z); // Center of visible disk has lon = 0
+					int row = Math.Clamp((int)((0.5 - lat / Math.PI) * MoonMapH), 0, MoonMapH - 1);
+					int baseCol = (int)((lon / (Math.PI * 2.0) + 0.5) * MoonMapW);
 
-					float shade = (float)Math.Pow(Math.Max(0f, Vector3.Dot(nrm, L)), 0.85) + 0.035f;
-					Vector3 col = new Vector3(0.88f, 0.86f, 0.82f) * albedo * shade;
-					float a = cover;
-					data[y * MoonSize + x] = new Color(col.X * a, col.Y * a, col.Z * a, a);
+					int p = moonPixelCount++;
+					mMoonIndex[p] = bi;
+					mMoonRowOff[p] = row * MoonMapW;
+					mMoonBaseCol[p] = baseCol;
+					mMoonLightR[p] = light.X * cover;
+					mMoonLightG[p] = light.Y * cover;
+					mMoonLightB[p] = light.Z * cover;
+					mMoonAlpha[p] = (byte)(cover * 255f);
 				}
 			}
-			moonData = data;
+		}
+
+		private static void UpdateMoon()
+		{
+			if (moonAlbedo == null || moonTex == null || moonPixelCount == 0)
+				return;
+
+			// Smooth, slow axial rotation of the lunar surface features underneath the fixed sunlight
+			float rotProgress = totalTime * 1.6f;
+			int r0 = (int)Math.Floor(rotProgress);
+			float rFrac = rotProgress - r0;
+			int r1 = (r0 + 1) & (MoonMapW - 1);
+			const int mask = MoonMapW - 1;
+
+			for (int p = 0; p < moonPixelCount; p++)
+			{
+				int row = mMoonRowOff[p];
+				int baseCol = mMoonBaseCol[p];
+				int i0 = row + ((baseCol + r0) & mask);
+				int i1 = row + ((baseCol + r1) & mask);
+				float albedo = moonAlbedo[i0] + (moonAlbedo[i1] - moonAlbedo[i0]) * rFrac;
+
+				int r = (int)(albedo * mMoonLightR[p] * 255f);
+				int g = (int)(albedo * mMoonLightG[p] * 255f);
+				int b = (int)(albedo * mMoonLightB[p] * 255f);
+
+				moonBuffer[mMoonIndex[p]] = new Color(
+					(byte)(r > 255 ? 255 : (r < 0 ? 0 : r)),
+					(byte)(g > 255 ? 255 : (g < 0 ? 0 : g)),
+					(byte)(b > 255 ? 255 : (b < 0 ? 0 : b)),
+					mMoonAlpha[p]
+				);
+			}
+
+			moonTex.SetData(moonBuffer);
 		}
 
 		// ═════════════════════════════════════════════════════════════
@@ -907,11 +1022,11 @@ namespace AutomataMusic.UI
 			float fade = Math.Min(1f, planetFade * 1.5f);
 			DrawGlow(sb, c, size * 1.3f, size * 1.3f, new Color(170, 185, 210, 0) * (0.12f * fade));
 
-			// Slow axial rotation of the Moon (ever so slightly)
-			float moonRotation = totalTime * 0.010f;
 			Vector2 origin = new Vector2(MoonSize * 0.5f, MoonSize * 0.5f);
 			float scale = size / (float)MoonSize;
-			sb.Draw(moonTex, c, null, Color.White * fade, moonRotation, origin, scale, SpriteEffects.None, 0f);
+			// The sunlit crescent is permanently locked facing towards the Sun (bottom-left),
+			// while the Moon's spherical surface (craters, maria) rotates across the sphere in UpdateMoon()
+			sb.Draw(moonTex, c, null, Color.White * fade, 0f, origin, scale, SpriteEffects.None, 0f);
 		}
 
 		private static void EnsureBunkerTexture()

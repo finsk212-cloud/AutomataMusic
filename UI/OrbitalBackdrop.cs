@@ -103,7 +103,7 @@ namespace AutomataMusic.UI
 		private static float warSpawnTimer = 1.6f;
 		private static Vector2 lastWarPos;
 
-		private static float shootTimer = 2.5f, shootLife, shootMax;
+		private static float shootTimer = 1.5f, shootLife, shootMax;
 		private static Vector2 shootPos, shootVel;
 
 		// ═════════════════════════════════════════════════════════════
@@ -1094,10 +1094,15 @@ namespace AutomataMusic.UI
 				Vector2 dirN = shootVel.LengthSquared() > 0.001f ? Vector2.Normalize(shootVel) : new Vector2(-1f, 0f);
 				float angle = (float)Math.Atan2(dirN.Y, dirN.X);
 
+				// Distance to Earth horizon below current position
+				float horizY = HorizonY(shootPos.X);
+				float altitude = horizY - shootPos.Y;
+
 				// ═════════════════════════════════════════════════════════════════
 				// Phase 1: Cold unburnt tumbling rock in space (no burning at all!)
+				// Guaranteed to stay cold while in space (altitude > 14% screen height)
 				// ═════════════════════════════════════════════════════════════════
-				if (t < igniteThreshold)
+				if (t < igniteThreshold || altitude > h * 0.14f)
 				{
 					float entryFade = MathHelper.Clamp(t / 0.05f, 0f, 1f);
 					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 2.8f, entryFade, heat: 0f, scale: 1f);
@@ -1172,20 +1177,20 @@ namespace AutomataMusic.UI
 			{
 				// Infrequent: spawns only once every 24 to 48 seconds
 				shootTimer = 24f + (float)fxRand.NextDouble() * 24f;
-				// Long lifetime (7.0s to 7.6s) allowing ~3.2s of cold approach and ~4.0s of sustained burning!
-				shootMax = shootLife = 7.0f + (float)fxRand.NextDouble() * 0.6f;
+				// Long lifetime (7.2s to 7.8s) allowing ~3.3s of cold approach and ~4.2s of sustained burning!
+				shootMax = shootLife = 7.3f + (float)fxRand.NextDouble() * 0.5f;
 
-				// Spawn high in starry space above Earth
+				// Spawn in space above Earth
 				bool rightToLeft = fxRand.NextDouble() < 0.55;
-				float startX = rightToLeft ? (w * (0.80f + (float)fxRand.NextDouble() * 0.08f)) : (w * (0.13f + (float)fxRand.NextDouble() * 0.08f));
-				// High entry corridor in deep space:
-				float startY = h * (0.15f + (float)fxRand.NextDouble() * 0.05f);
+				float startX = rightToLeft ? (w * (0.84f + (float)fxRand.NextDouble() * 0.05f)) : (w * (0.11f + (float)fxRand.NextDouble() * 0.05f));
+				// Entry corridor in space:
+				float startY = h * (0.31f + (float)fxRand.NextDouble() * 0.03f);
 				shootPos = new Vector2(startX, startY);
 
-				// Straight diagonal trajectory angled directly toward Earth (19° to 24° downward angle)
-				float downAngleDeg = 19f + (float)fxRand.NextDouble() * 5f;
+				// Straight grazing re-entry trajectory skimming close to Earth (10° to 12.5° downward angle)
+				float downAngleDeg = 10f + (float)fxRand.NextDouble() * 2.5f;
 				float ang = MathHelper.ToRadians(rightToLeft ? (180f - downAngleDeg) : downAngleDeg);
-				float speed = w * (0.092f + (float)fxRand.NextDouble() * 0.010f);
+				float speed = w * (0.076f + (float)fxRand.NextDouble() * 0.006f);
 				shootVel = new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * speed;
 			}
 		}

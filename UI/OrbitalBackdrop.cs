@@ -1120,9 +1120,9 @@ namespace AutomataMusic.UI
 				{
 					float horizY = HorizonY(shootPos.X);
 					float altitude = horizY - shootPos.Y;
-					if (altitude < h * 0.055f && shootVel.Y > 0f)
+					if (altitude < h * 0.030f && shootVel.Y > 0f)
 					{
-						shootVel.Y *= 0.90f; // Aerodynamic lift levels off the trajectory in the upper limb
+						shootVel.Y *= 0.88f; // Aerodynamic lift levels off the trajectory in the upper limb
 					}
 				}
 
@@ -1269,17 +1269,17 @@ namespace AutomataMusic.UI
 				explodeTriggered = false;
 				explodePos = Vector2.Zero;
 
-				// Spawn high in upper orbit above Earth's horizon (never crashing)
+				// Spawn high in starry space above Earth
 				bool rightToLeft = fxRand.NextDouble() < 0.55;
-				float startX = rightToLeft ? (w * (0.72f + (float)fxRand.NextDouble() * 0.14f)) : (w * (0.14f + (float)fxRand.NextDouble() * 0.14f));
-				float horizY = HorizonY(startX);
-				// High entry corridor: 13% to 17% of screen height above horizon
-				float startY = horizY - h * (0.13f + (float)fxRand.NextDouble() * 0.04f);
+				float startX = rightToLeft ? (w * (0.74f + (float)fxRand.NextDouble() * 0.12f)) : (w * (0.14f + (float)fxRand.NextDouble() * 0.12f));
+				// High entry corridor in deep space:
+				float startY = h * (0.12f + (float)fxRand.NextDouble() * 0.08f);
 				shootPos = new Vector2(startX, startY);
 
-				// Initial orbital velocity: shallow angle, curving into Earth later when burning begins
-				float ang = MathHelper.ToRadians(rightToLeft ? (183f - (float)fxRand.NextDouble() * 5f) : (-3f + (float)fxRand.NextDouble() * 5f));
-				float speed = w * (0.12f + (float)fxRand.NextDouble() * 0.03f);
+				// Steep atmospheric entry trajectory angled directly toward Earth (26° to 36° downward angle)
+				float downAngleDeg = 26f + (float)fxRand.NextDouble() * 10f;
+				float ang = MathHelper.ToRadians(rightToLeft ? (180f - downAngleDeg) : downAngleDeg);
+				float speed = w * (0.13f + (float)fxRand.NextDouble() * 0.03f);
 				shootVel = new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * speed;
 			}
 		}

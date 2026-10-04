@@ -1135,16 +1135,17 @@ namespace AutomataMusic.UI
 					rockAlpha = (float)Math.Pow(Math.Max(0f, 1f - fadeT), 1.25);
 				}
 
-				// Gentle candle flicker on the light when reaching maximum burning intensity
+				// Intense candle/flame flicker on the light when reaching maximum burning intensity
 				float distFromPeak = Math.Abs(burnProgress - peakBurn);
-				float peakZone = MathHelper.Clamp(1f - distFromPeak / 0.16f, 0f, 1f);
+				float peakZone = MathHelper.Clamp(1f - distFromPeak / 0.22f, 0f, 1f);
 				float candleFlicker = 1f;
 				if (peakZone > 0f)
 				{
-					// Organic candle flame luminance waver
-					float wave = (float)(Math.Sin(totalTime * 16f) * 0.5 + Math.Sin(totalTime * 27f + 1.2) * 0.35 + Math.Sin(totalTime * 41f + 2.7) * 0.15);
-					candleFlicker = 1f + peakZone * 0.18f * wave; // gentle +/- 18% light flicker
+					// Dynamic flame luminance waver with sharp crests and dips
+					float wave = (float)(Math.Sin(totalTime * 20f) * 0.45 + Math.Sin(totalTime * 34f + 1.2) * 0.35 + Math.Sin(totalTime * 52f + 2.7) * 0.20);
+					candleFlicker = 1f + peakZone * 0.45f * wave; // Rich +/- 45% light intensity flicker
 				}
+				candleFlicker = Math.Max(0.25f, candleFlicker);
 
 				// Ionization plasma trail
 				float trailLen = 160f * intensity;
@@ -1153,8 +1154,9 @@ namespace AutomataMusic.UI
 					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, intensity * candleFlicker, trailLen);
 
 					// Candle-flickering light glow around the fireball at peak intensity
-					DrawGlow(sb, shootPos, 22f * intensity, 22f * intensity, new Color(255, 205, 115, 0) * (intensity * 0.85f * candleFlicker));
-					DrawGlow(sb, shootPos, 40f * intensity, 40f * intensity, new Color(175, 225, 255, 0) * (intensity * 0.45f * candleFlicker));
+					float glowPulse = 0.85f + 0.25f * candleFlicker;
+					DrawGlow(sb, shootPos, 22f * intensity * glowPulse, 22f * intensity * glowPulse, new Color(255, 205, 115, 0) * (intensity * 0.85f * candleFlicker));
+					DrawGlow(sb, shootPos, 42f * intensity * glowPulse, 42f * intensity * glowPulse, new Color(175, 225, 255, 0) * (intensity * 0.45f * candleFlicker));
 				}
 
 				// The rock itself: burns, glows red-hot, shrinks as it vaporizes, and dissolves into the atmosphere

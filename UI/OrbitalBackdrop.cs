@@ -103,7 +103,7 @@ namespace AutomataMusic.UI
 		private static float warSpawnTimer = 1.6f;
 		private static Vector2 lastWarPos;
 
-		private static float shootTimer = 16f, shootLife, shootMax;
+		private static float shootTimer = 4f, shootLife, shootMax;
 		private static Vector2 shootPos, shootVel;
 		private static int shootVariant;
 		private static bool explodeTriggered;
@@ -1100,48 +1100,78 @@ namespace AutomataMusic.UI
 			if (shootLife > 0f)
 			{
 				shootLife -= dt;
-				float t = 1f - shootLife / shootMax; // [0..1] progress
+				float t = MathHelper.Clamp(1f - shootLife / shootMax, 0f, 1f); // [0..1] continuous progress
 
-				const float igniteThreshold = 0.25f;
+				const float igniteThreshold = 0.20f; // Ignites when entering denser mesosphere
 
-				// When it starts burning, Earth's gravity curves its trajectory down into the atmosphere
+				// When it starts burning, Earth's gravity curves its trajectory down into the upper atmosphere
 				if (t >= igniteThreshold)
 				{
 					float curveProgress = (t - igniteThreshold) / (1f - igniteThreshold);
 					Vector2 toEarth = new Vector2(gCx, gCy) - shootPos;
 					Vector2 gravDir = Vector2.Normalize(toEarth);
-					float curveStrength = h * 0.034f * (0.5f + 0.5f * curveProgress);
+					float curveStrength = h * 0.015f * (0.6f + 0.4f * curveProgress);
 					shootVel += gravDir * (curveStrength * dt);
+				}
+
+				// Aerodynamic safety cushion: gently level off if approaching the dense lower atmosphere
+				// This guarantees it NEVER crashes into Earth, while maintaining continuous smooth motion (no abrupt cutoffs!)
+				if (cachedW > 0)
+				{
+					float horizY = HorizonY(shootPos.X);
+					float altitude = horizY - shootPos.Y;
+					if (altitude < h * 0.055f && shootVel.Y > 0f)
+					{
+						shootVel.Y *= 0.90f; // Aerodynamic lift levels off the trajectory in the upper limb
+					}
 				}
 
 				shootPos += shootVel * dt;
 
-				// Guarantee it NEVER crashes: if it gets too close to the opaque horizon, burn-away completes immediately
-				if (cachedW > 0 && shootPos.Y > HorizonY(shootPos.X) - h * 0.045f)
-				{
-					shootLife = 0f;
-					return;
-				}
-
-				Vector2 dirN = Vector2.Normalize(shootVel);
+				Vector2 dirN = shootVel.LengthSquared() > 0.001f ? Vector2.Normalize(shootVel) : new Vector2(-1f, 0f);
 				float angle = (float)Math.Atan2(dirN.Y, dirN.X);
 
+				// ═════════════════════════════════════════════════════════════════
 				// Phase 1: Cold unburnt tumbling rock in space (no burning at all!)
+				// ═════════════════════════════════════════════════════════════════
 				if (t < igniteThreshold)
 				{
-					float entryFade = MathHelper.Clamp(t / 0.08f, 0f, 1f);
+					float entryFade = MathHelper.Clamp(t / 0.06f, 0f, 1f);
 					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 2.8f, entryFade, heat: 0f, scale: 1f);
 					return;
 				}
 
-				// Phase 2: It starts burning, curves into Earth, and burns away completely
+				// ═════════════════════════════════════════════════════════════════
+				// Phase 2 & 3: Starts on fire, intensity swells, curves into Earth,
+				// and smoothly burns away / fades away into the atmosphere!
+				// ═════════════════════════════════════════════════════════════════
 				float burnProgress = (t - igniteThreshold) / (1f - igniteThreshold); // [0..1]
+				float intensity;
+				float rockScale;
+				float rockAlpha;
+				float trailLen;
 
-				// Variant 1: Curves into Earth, reaches peak heat, then flashes in an airburst explosion for 1s and fades away
+				// Variant 1 (25% chance): Terminal bolide flare at peak heat, then smoothly fades away
 				if (shootVariant == 1)
 				{
-					const float explodeT = 0.48f;
-					if (t >= explodeT)
+					const float flareStart = 0.50f;
+					if (t < flareStart)
+					{
+						// Heating up and curving into Earth prior to flare
+						float preT = (t - igniteThreshold) / (flareStart - igniteThreshold); // 0 -> 1
+						intensity = (float)Math.Sin(preT * Math.PI * 0.5); // 0 -> 1
+						trailLen = 140f * intensity;
+
+						DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, intensity, trailLen);
+
+						// Fiery thermal head glow
+						DrawGlow(sb, shootPos, 20f * intensity, 20f * intensity, new Color(255, 200, 110, 0) * (intensity * 0.80f));
+						DrawGlow(sb, shootPos, 36f * intensity, 36f * intensity, new Color(175, 220, 255, 0) * (intensity * 0.45f));
+
+						rockScale = 1.0f - 0.15f * intensity;
+						DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.2f, 1f, intensity, rockScale);
+					}
+					else
 					{
 						if (!explodeTriggered)
 						{
@@ -1149,69 +1179,82 @@ namespace AutomataMusic.UI
 							explodePos = shootPos;
 						}
 
-						// Airburst flash: expands rapidly, flashes brilliant white-cyan for ~1s, then fades away
-						float expT = (t - explodeT) / (1f - explodeT); // [0..1] over ~1.6 seconds
-						float flashIntensity = expT < 0.10f
-							? (expT / 0.10f)
-							: (float)Math.Pow(1f - expT, 1.8);
+						float flareT = (t - flareStart) / (1f - flareStart); // 0 -> 1 over remaining ~1.8 seconds
 
-						float bloom = h * (0.022f + 0.060f * expT);
+						// Continuous, smooth fade-out to guaranteed 0.0 at flareT = 1.0
+						float flareFade = (float)Math.Cos(flareT * Math.PI * 0.5); // 1.0 -> 0.0
+						float flashIntensity = (float)Math.Pow(flareFade, 1.5);
 
-						// Brilliant explosive detonation core
-						DrawGlow(sb, explodePos, bloom * 1.5f, bloom * 1.5f, new Color(255, 255, 255, 0) * (flashIntensity * 0.95f));
-						// Ionization shockwave halo
-						DrawGlow(sb, explodePos, bloom * 2.8f, bloom * 2.8f, new Color(175, 220, 255, 0) * (flashIntensity * 0.65f));
-						// Expanding outer shock ring
-						DrawGlow(sb, explodePos, bloom * 3.6f, bloom * 3.6f, new Color(140, 195, 255, 0) * (flashIntensity * 0.35f));
+						// Detonation core flash pulse (peaks quickly, then diffuses into the atmosphere)
+						float pulse = flareT < 0.15f
+							? (flareT / 0.15f)
+							: (float)Math.Pow(1f - (flareT - 0.15f) / 0.85f, 1.8);
 
-						// Shattered fiery fragments flying outward
+						float bloom = h * (0.025f + 0.065f * flareT);
+
+						// Expanding white-hot plasma core
+						DrawGlow(sb, explodePos, bloom * 1.5f, bloom * 1.5f, new Color(255, 255, 255, 0) * (pulse * 0.95f));
+						// Ionization airglow shockwave halo
+						DrawGlow(sb, explodePos, bloom * 2.8f, bloom * 2.8f, new Color(175, 225, 255, 0) * (flashIntensity * 0.70f));
+						// Outer diffusing atmospheric cloud
+						DrawGlow(sb, explodePos, bloom * 4.0f, bloom * 4.0f, new Color(140, 195, 255, 0) * (flashIntensity * 0.35f));
+
+						// Trailing fragments dissolving into embers
 						for (int f = 0; f < expFrags.Length; f++)
 						{
-							Vector2 fPos = explodePos + expFrags[f].Vel * (expT * 42f);
-							float fFade = (1f - expT) * (float)Math.Sin(expT * Math.PI);
-							if (fFade > 0f)
+							Vector2 fPos = explodePos + expFrags[f].Vel * (flareT * 40f) + shootVel * (flareT * 0.3f);
+							float fFade = (float)Math.Sin(flareT * Math.PI) * (1f - flareT);
+							if (fFade > 0.01f)
 							{
 								sb.Draw(pixel, new Rectangle((int)fPos.X, (int)fPos.Y, (int)expFrags[f].Size, (int)expFrags[f].Size), new Color(255, 225, 170, 0) * fFade);
 								DrawGlow(sb, fPos, 7f, 7f, new Color(255, 185, 90, 0) * (fFade * 0.55f));
 							}
 						}
-
-						return;
 					}
-					else
-					{
-						// Heating up while curving into Earth prior to airburst
-						float preFade = (t - igniteThreshold) / (explodeT - igniteThreshold);
-						float brightness = (float)Math.Pow(preFade, 1.4);
-						float tailLen = 95f * brightness;
-
-						if (brightness > 0.08f)
-						{
-							DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, brightness, tailLen);
-						}
-						DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.5f, 1f, brightness, 1f);
-						return;
-					}
+					return;
 				}
 
-				// Variant 0: Curves into Earth and burns away completely into nothingness (no crash)
-				// Mass remaining: shrinks as friction vaporizes the rock
-				float mass = Math.Max(0f, 1f - (float)Math.Pow(burnProgress, 1.25));
-				float rockScale = mass;
+				// ═════════════════════════════════════════════════════════════════
+				// Variant 0 (75% chance): Canonical Atmospheric Burn-Away
+				// "starts on fire, intensity increases, burns away and fades away to the atmosphere"
+				// ═════════════════════════════════════════════════════════════════
+				const float peakBurn = 0.46f; // Peak intensity point
 
-				// Flame intensity peaks around burnProgress = 0.45, then dwindles as mass is consumed
-				float flame = (burnProgress < 0.45f ? (burnProgress / 0.45f) : (float)Math.Pow(1f - burnProgress, 1.35));
-				float trailLength = 140f * flame * (0.35f + 0.65f * mass);
-
-				if (flame > 0.04f)
+				if (burnProgress < peakBurn)
 				{
-					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, flame, trailLength);
+					// Starts on fire -> intensity builds smoothly to peak
+					float ramp = burnProgress / peakBurn; // 0 -> 1
+					intensity = (float)Math.Sin(ramp * Math.PI * 0.5); // 0.0 -> 1.0 smoothly
+					rockScale = 1.0f - 0.15f * ramp; // 1.0 -> 0.85
+					rockAlpha = 1.0f;
+				}
+				else
+				{
+					// Peak reached -> rock burns away (ablates to 0) & flame fades into the atmosphere
+					float fadeT = (burnProgress - peakBurn) / (1f - peakBurn); // 0 -> 1
+					float fadeOut = (float)Math.Cos(fadeT * Math.PI * 0.5); // 1.0 -> 0.0 smoothly
+					intensity = (float)Math.Pow(fadeOut, 1.4); // Smooth decay reaching 0.0 at t=1.0
+
+					// Solid rock is vaporized into gas: scale and opacity shrink to 0
+					rockScale = Math.Max(0f, 0.85f * (1f - (float)Math.Pow(fadeT, 0.85)));
+					rockAlpha = (float)Math.Pow(Math.Max(0f, 1f - fadeT), 1.25);
 				}
 
-				// Rock tumbles and shrinks until it completely burns away
-				if (burnProgress < 0.88f)
+				// Ionization plasma trail
+				trailLen = 160f * intensity;
+				if (intensity > 0.005f)
 				{
-					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.0f, flame * 0.95f, flame, rockScale);
+					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, intensity, trailLen);
+
+					// Incandescent fireball head glow
+					DrawGlow(sb, shootPos, 22f * intensity, 22f * intensity, new Color(255, 205, 115, 0) * (intensity * 0.85f));
+					DrawGlow(sb, shootPos, 40f * intensity, 40f * intensity, new Color(175, 225, 255, 0) * (intensity * 0.45f));
+				}
+
+				// The rock itself: burns, glows red-hot, shrinks as it vaporizes, and dissolves into the atmosphere
+				if (rockAlpha > 0.01f && rockScale > 0.04f)
+				{
+					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.0f, rockAlpha, intensity, rockScale);
 				}
 				return;
 			}
@@ -1219,24 +1262,24 @@ namespace AutomataMusic.UI
 			shootTimer -= dt;
 			if (shootTimer <= 0f)
 			{
-				// Infrequent: spawns only once every 24 to 52 seconds
-				shootTimer = 24f + (float)fxRand.NextDouble() * 28f;
-				shootMax = shootLife = 3.2f + (float)fxRand.NextDouble() * 0.8f;
-				shootVariant = fxRand.Next(2); // 0 = Curves into Earth and burns away; 1 = Curves into Earth and airburst explodes
+				// Infrequent: spawns only once every 24 to 48 seconds
+				shootTimer = 24f + (float)fxRand.NextDouble() * 24f;
+				shootMax = shootLife = 3.6f + (float)fxRand.NextDouble() * 0.6f;
+				shootVariant = fxRand.NextDouble() < 0.25 ? 1 : 0; // 75% Canonical burn-away, 25% Terminal bolide flare
 				explodeTriggered = false;
 				explodePos = Vector2.Zero;
 
 				// Spawn high in upper orbit above Earth's horizon (never crashing)
 				bool rightToLeft = fxRand.NextDouble() < 0.55;
-				float startX = rightToLeft ? (w * (0.75f + (float)fxRand.NextDouble() * 0.15f)) : (w * (0.10f + (float)fxRand.NextDouble() * 0.15f));
+				float startX = rightToLeft ? (w * (0.72f + (float)fxRand.NextDouble() * 0.14f)) : (w * (0.14f + (float)fxRand.NextDouble() * 0.14f));
 				float horizY = HorizonY(startX);
-				// High entry corridor: 10% to 15% of screen height above horizon
-				float startY = horizY - h * (0.10f + (float)fxRand.NextDouble() * 0.05f);
+				// High entry corridor: 13% to 17% of screen height above horizon
+				float startY = horizY - h * (0.13f + (float)fxRand.NextDouble() * 0.04f);
 				shootPos = new Vector2(startX, startY);
 
-				// Initial orbital velocity: nearly horizontal, curving into Earth later when burning begins
-				float ang = MathHelper.ToRadians(rightToLeft ? (182f - (float)fxRand.NextDouble() * 6f) : (-2f + (float)fxRand.NextDouble() * 6f));
-				float speed = w * (0.14f + (float)fxRand.NextDouble() * 0.04f);
+				// Initial orbital velocity: shallow angle, curving into Earth later when burning begins
+				float ang = MathHelper.ToRadians(rightToLeft ? (183f - (float)fxRand.NextDouble() * 5f) : (-3f + (float)fxRand.NextDouble() * 5f));
+				float speed = w * (0.12f + (float)fxRand.NextDouble() * 0.03f);
 				shootVel = new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * speed;
 			}
 		}

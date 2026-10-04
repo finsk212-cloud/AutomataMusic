@@ -54,6 +54,7 @@ namespace AutomataMusic.UI
 		private static byte[] mMoonAlpha;
 
 		private static Texture2D glowTex, gradientTex, nebulaTex, moonTex, planetTex;
+		private static Texture2D emilTex, flightUnitTex, podTex;
 		private static Asset<Texture2D> bunkerTexture;
 
 		// ───────────────────────── Planet geometry cache ─────────────────────────
@@ -106,6 +107,23 @@ namespace AutomataMusic.UI
 		private static float shootTimer = 1.5f, shootLife, shootMax;
 		private static Vector2 shootPos, shootVel;
 
+		private struct EasterEgg
+		{
+			public bool Active;
+			public int Type; // 0 = Emil's Head, 1 = YoRHa Flight Unit, 2 = Pod 042
+			public Vector2 Pos;
+			public Vector2 Vel;
+			public float Life;
+			public float MaxLife;
+			public float Rotation;
+			public float RotSpeed;
+			public float Scale;
+			public float Alpha;
+		}
+
+		private static EasterEgg egg;
+		private static float eggSpawnTimer = 3.5f; // Quick 3.5s initial timer for immediate sighting, then 60s-120s
+
 		// ═════════════════════════════════════════════════════════════
 		//  Public API
 		// ═════════════════════════════════════════════════════════════
@@ -139,6 +157,9 @@ namespace AutomataMusic.UI
 			// 4. Moon (the Human Council's server lives up there...)
 			DrawMoon(sb, w, h);
 
+			// 4.5 Distant deep-space object easter egg (Emil's Head / YoRHa Flight Unit / Pod 042)
+			DrawEasterEgg(sb, pixel, w, h, dt);
+
 			// 5. Planet
 			if (texturesBuilt)
 			{
@@ -168,9 +189,11 @@ namespace AutomataMusic.UI
 
 		public static void Unload()
 		{
-			Texture2D[] all = { glowTex, gradientTex, nebulaTex, moonTex, planetTex };
-			glowTex = gradientTex = nebulaTex = moonTex = planetTex = null;
+			Texture2D[] all = { glowTex, gradientTex, nebulaTex, moonTex, planetTex, emilTex, flightUnitTex, podTex };
+			glowTex = gradientTex = nebulaTex = moonTex = planetTex = emilTex = flightUnitTex = podTex = null;
 			bunkerTexture = null;
+			egg = default;
+			eggSpawnTimer = 3.5f;
 			texturesBuilt = false;
 			cachedW = cachedH = -1;
 			Array.Clear(warFlashes, 0, warFlashes.Length);
@@ -1226,6 +1249,384 @@ namespace AutomataMusic.UI
 			// The sunlit crescent is permanently locked facing towards the Sun (bottom-left),
 			// while the Moon's spherical surface (craters, maria) rotates across the sphere in UpdateMoon()
 			sb.Draw(moonTex, c, null, Color.White * fade, 0f, origin, scale, SpriteEffects.None, 0f);
+		}
+
+		// ═════════════════════════════════════════════════════════════
+		//  Deep-Space Easter Egg (Emil's Head / YoRHa Flight Unit / Pod 042)
+		// ═════════════════════════════════════════════════════════════
+
+		private static void EnsureEasterEggTextures(GraphicsDevice gd)
+		{
+			if (emilTex == null || emilTex.IsDisposed)
+				emilTex = GenerateEmilTexture(gd);
+			if (flightUnitTex == null || flightUnitTex.IsDisposed)
+				flightUnitTex = GenerateFlightUnitTexture(gd);
+			if (podTex == null || podTex.IsDisposed)
+				podTex = GeneratePodTexture(gd);
+		}
+
+		private static Texture2D GenerateEmilTexture(GraphicsDevice gd)
+		{
+			const int S = 32;
+			Color[] data = new Color[S * S];
+			float cx = 15.5f, cy = 15.5f, R = 12.0f;
+
+			for (int y = 0; y < S; y++)
+			{
+				for (int x = 0; x < S; x++)
+				{
+					float dx = x - cx;
+					float dy = y - cy;
+					float d = (float)Math.Sqrt(dx * dx + dy * dy);
+
+					if (d > R + 0.5f)
+					{
+						data[y * S + x] = Color.Transparent;
+						continue;
+					}
+
+					// Dark outer contour outline (1px boundary)
+					if (d >= R - 0.9f)
+					{
+						float edgeA = MathHelper.Clamp(R + 0.5f - d, 0f, 1f);
+						data[y * S + x] = new Color(40, 42, 48) * edgeA;
+						continue;
+					}
+
+					// Spherical surface shading (lit from upper-left SunDir)
+					float z = (float)Math.Sqrt(Math.Max(0f, R * R - d * d));
+					Vector3 norm = Vector3.Normalize(new Vector3(dx, dy, z));
+					Vector3 lightDir = Vector3.Normalize(new Vector3(-0.55f, -0.65f, 0.52f));
+					float diff = MathHelper.Clamp(Vector3.Dot(norm, lightDir) * 0.5f + 0.5f, 0f, 1f);
+					Color baseBone = Color.Lerp(new Color(135, 140, 150), new Color(245, 246, 250), diff);
+
+					// Eyes: two large, distinct round hollow black sockets
+					// Eye 1 at (11.2, 11.2), Eye 2 at (19.8, 11.2), radius 2.6
+					float e1d = (float)Math.Sqrt((x - 11.2f) * (x - 11.2f) + (y - 11.2f) * (y - 11.2f));
+					float e2d = (float)Math.Sqrt((x - 19.8f) * (x - 19.8f) + (y - 11.2f) * (y - 11.2f));
+					if (e1d <= 2.6f || e2d <= 2.6f)
+					{
+						float ed = Math.Min(e1d, e2d);
+						if (ed > 2.0f)
+						{
+							data[y * S + x] = new Color(30, 32, 38);
+						}
+						else if (ed > 0.8f && ed < 1.4f)
+						{
+							data[y * S + x] = new Color(90, 95, 105);
+						}
+						else
+						{
+							data[y * S + x] = new Color(18, 18, 22);
+						}
+						continue;
+					}
+
+					// Mouth: wide iconic crescent grin spanning x from 8 to 23
+					float mx = (x - cx) / 7.2f;
+					if (Math.Abs(mx) <= 1.05f)
+					{
+						float smileBaseY = 16.5f + 3.2f * (1.0f - mx * mx);
+						float distFromSmile = y - smileBaseY;
+
+						if (distFromSmile >= -1.2f && distFromSmile <= 2.2f)
+						{
+							bool isToothCol = ((x + 1) % 2 == 0) && (x >= 9 && x <= 22);
+							bool isUpperTooth = distFromSmile < 0.4f;
+							bool isLowerTooth = distFromSmile > 0.8f;
+
+							if (isToothCol && (isUpperTooth || isLowerTooth))
+							{
+								data[y * S + x] = new Color(245, 245, 248);
+							}
+							else
+							{
+								data[y * S + x] = new Color(22, 22, 28);
+							}
+							continue;
+						}
+					}
+
+					data[y * S + x] = baseBone;
+				}
+			}
+
+			Texture2D tex = new Texture2D(gd, S, S);
+			tex.SetData(data);
+			return tex;
+		}
+
+		private static Texture2D GenerateFlightUnitTexture(GraphicsDevice gd)
+		{
+			const int S = 32;
+			Color[] data = new Color[S * S];
+
+			for (int y = 0; y < S; y++)
+			{
+				for (int x = 0; x < S; x++)
+				{
+					float fy = y - 15.5f;
+					float absY = Math.Abs(fy);
+
+					float maxChordY = (x >= 8 && x <= 27) ? (27f - x) * 0.58f : 0f;
+					bool inWings = absY <= maxChordY && x >= 8 && x <= 26;
+					bool inFuselage = (absY <= 2.2f && x >= 6 && x <= 28) || (absY <= 1.2f && x >= 26 && x <= 29);
+					bool inEngines = (x >= 6 && x <= 14) && (absY >= 3.0f && absY <= 5.5f);
+
+					if (!inWings && !inFuselage && !inEngines)
+					{
+						data[y * S + x] = Color.Transparent;
+						continue;
+					}
+
+					if (inEngines)
+					{
+						data[y * S + x] = (x <= 7) ? new Color(130, 225, 255) : new Color(75, 80, 90);
+					}
+					else if (inFuselage)
+					{
+						if (x >= 18 && x <= 23 && absY <= 1.2f)
+						{
+							data[y * S + x] = new Color(30, 32, 38);
+						}
+						else
+						{
+							float shade = (fy < 0f) ? 1.0f : 0.88f;
+							data[y * S + x] = new Color((byte)(240 * shade), (byte)(242 * shade), (byte)(248 * shade));
+						}
+					}
+					else
+					{
+						bool isPanelLine = (x == 16 || (int)(absY + x) % 7 == 0);
+						if (isPanelLine)
+						{
+							data[y * S + x] = new Color(175, 180, 192);
+						}
+						else
+						{
+							float shade = (fy < 0f) ? 0.95f : 0.82f;
+							data[y * S + x] = new Color((byte)(235 * shade), (byte)(238 * shade), (byte)(244 * shade));
+						}
+					}
+				}
+			}
+
+			Texture2D tex = new Texture2D(gd, S, S);
+			tex.SetData(data);
+			return tex;
+		}
+
+		private static Texture2D GeneratePodTexture(GraphicsDevice gd)
+		{
+			const int S = 24;
+			Color[] data = new Color[S * S];
+			float cx = 11.5f, cy = 11.5f;
+
+			for (int y = 0; y < S; y++)
+			{
+				for (int x = 0; x < S; x++)
+				{
+					float dx = x - cx;
+					float dy = y - cy;
+
+					bool inBody = (x >= 7 && x <= 16 && y >= 6 && y <= 17);
+					bool inAntenna = (x == 11 && y >= 2 && y <= 5);
+					bool inThruster = (x >= 9 && x <= 14 && y == 18) || ((x == 8 || x == 15) && y >= 16 && y <= 19);
+
+					if (!inBody && !inAntenna && !inThruster)
+					{
+						data[y * S + x] = Color.Transparent;
+						continue;
+					}
+
+					if (inAntenna)
+					{
+						data[y * S + x] = (y == 2) ? new Color(255, 230, 150) : new Color(120, 125, 135);
+					}
+					else if (inThruster)
+					{
+						data[y * S + x] = new Color(50, 52, 60);
+					}
+					else
+					{
+						if (y == 11 && x >= 9 && x <= 14)
+						{
+							data[y * S + x] = (x == 12) ? new Color(255, 45, 45) : new Color(25, 28, 35);
+						}
+						else
+						{
+							float light = MathHelper.Clamp(1.0f - (dx / 6.0f) * 0.25f, 0.75f, 1.0f);
+							data[y * S + x] = new Color((byte)(235 * light), (byte)(238 * light), (byte)(245 * light));
+						}
+					}
+				}
+			}
+
+			Texture2D tex = new Texture2D(gd, S, S);
+			tex.SetData(data);
+			return tex;
+		}
+
+		private static void DrawEasterEgg(SpriteBatch sb, Texture2D pixel, int w, int h, float dt)
+		{
+			EnsureEasterEggTextures(Main.instance.GraphicsDevice);
+			if (emilTex == null || flightUnitTex == null || podTex == null)
+				return;
+
+			if (egg.Active)
+			{
+				egg.Life -= dt;
+				egg.Pos += egg.Vel * dt;
+				egg.Rotation += egg.RotSpeed * dt;
+
+				float fadeIn = MathHelper.Clamp((egg.MaxLife - egg.Life) / 2.5f, 0f, 1f);
+				float fadeOut = MathHelper.Clamp(egg.Life / 2.5f, 0f, 1f);
+				float alpha = egg.Alpha * Math.Min(fadeIn, fadeOut);
+
+				if (egg.Life <= 0f || egg.Pos.X < -120f || egg.Pos.X > w + 120f)
+				{
+					egg.Active = false;
+					return;
+				}
+
+				if (alpha <= 0.005f)
+					return;
+
+				switch (egg.Type)
+				{
+					case 0: // Emil's Head (zero-G tumbling smiling sphere with celestial twinkle)
+					{
+						Vector2 origin = new Vector2(16f, 16f);
+						sb.Draw(emilTex, egg.Pos, null, Color.White * alpha, egg.Rotation, origin, egg.Scale, SpriteEffects.None, 0f);
+
+						// Soft subtle blue-white orbital Earth-shine glow around Emil
+						DrawGlow(sb, egg.Pos, 22f * egg.Scale, 22f * egg.Scale, new Color(130, 180, 240, 0) * (alpha * 0.20f));
+
+						// Periodic tooth/cheek twinkle sparkle every ~3.5s
+						float sparkleTime = totalTime * 1.8f;
+						float sparkleWave = (float)Math.Sin(sparkleTime);
+						if (sparkleWave > 0.88f)
+						{
+							float glintA = (sparkleWave - 0.88f) / 0.12f * alpha;
+							Vector2 localGlint = new Vector2(5.5f, 4.0f) * egg.Scale;
+							float cosR = (float)Math.Cos(egg.Rotation);
+							float sinR = (float)Math.Sin(egg.Rotation);
+							Vector2 glintPos = egg.Pos + new Vector2(localGlint.X * cosR - localGlint.Y * sinR, localGlint.X * sinR + localGlint.Y * cosR);
+
+							DrawGlow(sb, glintPos, 14f, 14f, new Color(255, 255, 255, 0) * (glintA * 0.9f));
+							int spikeLen = (int)(6f * glintA);
+							sb.Draw(pixel, new Rectangle((int)glintPos.X - spikeLen, (int)glintPos.Y, spikeLen * 2 + 1, 1), Color.White * glintA);
+							sb.Draw(pixel, new Rectangle((int)glintPos.X, (int)glintPos.Y - spikeLen, 1, spikeLen * 2 + 1), Color.White * glintA);
+						}
+						break;
+					}
+
+					case 1: // YoRHa Flight Unit Ho229 (delta-wing cruise with dual cyan ion thruster plumes)
+					{
+						Vector2 origin = new Vector2(16f, 16f);
+						Vector2 dir = egg.Vel.LengthSquared() > 0.001f ? Vector2.Normalize(egg.Vel) : Vector2.UnitX;
+						float flightAngle = (float)Math.Atan2(dir.Y, dir.X);
+
+						float thrusterPulse = 0.82f + 0.18f * (float)Math.Sin(totalTime * 32f);
+						float plumeLen = 22f * thrusterPulse * egg.Scale;
+						float cosA = (float)Math.Cos(flightAngle);
+						float sinA = (float)Math.Sin(flightAngle);
+
+						for (int eng = -1; eng <= 1; eng += 2)
+						{
+							Vector2 engOff = new Vector2(-10f * egg.Scale, eng * 4.5f * egg.Scale);
+							Vector2 engPos = egg.Pos + new Vector2(engOff.X * cosA - engOff.Y * sinA, engOff.X * sinA + engOff.Y * cosA);
+
+							DrawGlow(sb, engPos - dir * (plumeLen * 0.45f), plumeLen, 6f * egg.Scale, new Color(100, 210, 255, 0) * (alpha * 0.75f), flightAngle);
+							DrawGlow(sb, engPos - dir * (plumeLen * 0.25f), plumeLen * 0.6f, 3.5f * egg.Scale, new Color(230, 250, 255, 0) * (alpha * 0.90f), flightAngle);
+						}
+
+						sb.Draw(flightUnitTex, egg.Pos, null, Color.White * alpha, flightAngle, origin, egg.Scale, SpriteEffects.None, 0f);
+
+						// Wingtip navigation beacons: blinking alternately
+						float beaconTime = (totalTime * 1.5f) % 1.0f;
+						if (beaconTime < 0.25f)
+						{
+							float bAlpha = alpha * (1f - beaconTime / 0.25f);
+							Vector2 portOff = new Vector2(-6f * egg.Scale, -11f * egg.Scale);
+							Vector2 stbdOff = new Vector2(-6f * egg.Scale, 11f * egg.Scale);
+							Vector2 portPos = egg.Pos + new Vector2(portOff.X * cosA - portOff.Y * sinA, portOff.X * sinA + portOff.Y * cosA);
+							Vector2 stbdPos = egg.Pos + new Vector2(stbdOff.X * cosA - stbdOff.Y * sinA, stbdOff.X * sinA + stbdOff.Y * cosA);
+
+							sb.Draw(pixel, new Rectangle((int)portPos.X - 1, (int)portPos.Y - 1, 2, 2), new Color(255, 60, 60) * bAlpha);
+							sb.Draw(pixel, new Rectangle((int)stbdPos.X - 1, (int)stbdPos.Y - 1, 2, 2), new Color(80, 255, 140) * bAlpha);
+						}
+						break;
+					}
+
+					case 2: // Pod 042 (tactical support unit with pulsing red optical sensor)
+					{
+						Vector2 origin = new Vector2(12f, 12f);
+						float bobY = (float)Math.Sin(totalTime * 2.2f) * 1.5f;
+						Vector2 drawPos = egg.Pos + new Vector2(0f, bobY);
+						float tilt = (float)Math.Sin(totalTime * 1.4f) * 0.04f;
+
+						sb.Draw(podTex, drawPos, null, Color.White * alpha, tilt, origin, egg.Scale, SpriteEffects.None, 0f);
+
+						float eyePulse = 0.65f + 0.35f * (float)Math.Sin(totalTime * 5.0f);
+						Vector2 eyePos = drawPos + new Vector2(0.5f, -0.5f);
+						DrawGlow(sb, eyePos, 8f * egg.Scale * eyePulse, 8f * egg.Scale * eyePulse, new Color(255, 40, 40, 0) * (alpha * 0.85f));
+
+						float puffCycle = (totalTime * 0.8f) % 1.0f;
+						if (puffCycle < 0.18f)
+						{
+							float pAlpha = alpha * (1f - puffCycle / 0.18f);
+							Vector2 puffPos = drawPos + new Vector2(0f, 9f * egg.Scale);
+							DrawGlow(sb, puffPos, 6f * egg.Scale, 8f * egg.Scale, new Color(140, 200, 255, 0) * (pAlpha * 0.65f));
+						}
+						break;
+					}
+				}
+				return;
+			}
+
+			// Spawning: infrequent rare easter egg sighting across deep space
+			eggSpawnTimer -= dt;
+			if (eggSpawnTimer <= 0f)
+			{
+				eggSpawnTimer = 60f + (float)fxRand.NextDouble() * 60f;
+
+				egg.Active = true;
+				int roll = fxRand.Next(10);
+				egg.Type = roll < 5 ? 0 : (roll < 8 ? 1 : 2); // 50% Emil, 30% Flight Unit, 20% Pod
+
+				bool leftToRight = fxRand.NextDouble() < 0.55;
+				float startX = leftToRight ? -40f : (w + 40f);
+				float startY = h * (0.07f + (float)fxRand.NextDouble() * 0.16f);
+				egg.Pos = new Vector2(startX, startY);
+
+				float transitSpeed = w * (0.024f + (float)fxRand.NextDouble() * 0.006f);
+				float vx = leftToRight ? transitSpeed : -transitSpeed;
+				float vy = (float)(fxRand.NextDouble() * 2.0 - 1.0) * (w * 0.0022f);
+				egg.Vel = new Vector2(vx, vy);
+
+				egg.MaxLife = egg.Life = (w + 100f) / Math.Abs(vx);
+				egg.Alpha = 0.95f;
+
+				if (egg.Type == 0) // Emil
+				{
+					egg.Scale = 0.85f;
+					egg.Rotation = (float)(fxRand.NextDouble() * MathHelper.TwoPi);
+					egg.RotSpeed = (float)(fxRand.NextDouble() * 0.35 + 0.15) * (leftToRight ? 1f : -1f);
+				}
+				else if (egg.Type == 1) // Flight Unit
+				{
+					egg.Scale = 0.75f;
+					egg.Rotation = 0f;
+					egg.RotSpeed = 0f;
+				}
+				else // Pod 042
+				{
+					egg.Scale = 0.80f;
+					egg.Rotation = 0f;
+					egg.RotSpeed = 0f;
+				}
+			}
 		}
 
 		private static void EnsureBunkerTexture()

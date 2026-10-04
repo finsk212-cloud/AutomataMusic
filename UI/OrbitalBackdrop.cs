@@ -1088,7 +1088,19 @@ namespace AutomataMusic.UI
 
 				const float igniteThreshold = 0.44f; // Flies cold across deep space; ignites later when getting close to Earth
 
-				// Straight flight path across the sky toward Earth (no curving or trajectory flicking)
+				// Planetary gravity curving trajectory toward Earth (stronger the closer it gets to Earth)
+				Vector2 toEarth = new Vector2(gCx, gCy) - shootPos;
+				float distToEarth = toEarth.Length();
+				Vector2 gravDir = distToEarth > 1f ? (toEarth / distToEarth) : Vector2.UnitY;
+
+				// Altitude above Earth's spherical horizon
+				float altFromSurface = Math.Max(0f, distToEarth - gR);
+
+				// Gravity strength scales smoothly: subtle in deep space, curving progressively into Earth as it nears the atmosphere
+				float proximity = MathHelper.Clamp(1f - altFromSurface / (h * 0.32f), 0f, 1f);
+				float gravAccel = h * (0.0012f + 0.0050f * proximity * proximity);
+
+				shootVel += gravDir * (gravAccel * dt);
 				shootPos += shootVel * dt;
 
 				Vector2 dirN = shootVel.LengthSquared() > 0.001f ? Vector2.Normalize(shootVel) : new Vector2(-1f, 0f);
@@ -1139,6 +1151,11 @@ namespace AutomataMusic.UI
 					rockAlpha = (float)Math.Pow(Math.Max(0f, 1f - fadeT), 1.25);
 				}
 
+				// Ensure rock and plasma completely vaporize before touching the solid surface
+				float surfaceBuffer = MathHelper.Clamp((altitude - 14f) / 28f, 0f, 1f);
+				intensity *= surfaceBuffer;
+				rockAlpha *= surfaceBuffer;
+
 				// Intense candle/flame flicker on the light when reaching maximum burning intensity
 				float distFromPeak = Math.Abs(burnProgress - peakBurn);
 				float peakZone = MathHelper.Clamp(1f - distFromPeak / 0.24f, 0f, 1f);
@@ -1181,13 +1198,13 @@ namespace AutomataMusic.UI
 
 				// Spawn in space above Earth
 				bool rightToLeft = fxRand.NextDouble() < 0.55;
-				float startX = rightToLeft ? (w * (0.82f + (float)fxRand.NextDouble() * 0.04f)) : (w * (0.14f + (float)fxRand.NextDouble() * 0.04f));
+				float startX = rightToLeft ? (w * (0.83f + (float)fxRand.NextDouble() * 0.04f)) : (w * (0.13f + (float)fxRand.NextDouble() * 0.04f));
 				// Entry corridor in space, approaching Earth's atmosphere:
-				float startY = h * (0.45f + (float)fxRand.NextDouble() * 0.03f);
+				float startY = h * (0.43f + (float)fxRand.NextDouble() * 0.03f);
 				shootPos = new Vector2(startX, startY);
 
-				// Straight grazing re-entry trajectory entering Earth's blue atmosphere (8.5° to 10° downward angle)
-				float downAngleDeg = 8.5f + (float)fxRand.NextDouble() * 1.5f;
+				// Shallow entry glide (5.8° to 7.6°) that curves smoothly into Earth as gravity takes hold
+				float downAngleDeg = 5.8f + (float)fxRand.NextDouble() * 1.8f;
 				float ang = MathHelper.ToRadians(rightToLeft ? (180f - downAngleDeg) : downAngleDeg);
 				float speed = w * (0.072f + (float)fxRand.NextDouble() * 0.005f);
 				shootVel = new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * speed;

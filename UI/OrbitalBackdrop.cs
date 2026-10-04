@@ -133,9 +133,8 @@ namespace AutomataMusic.UI
 			if (nebulaTex != null)
 				sb.Draw(nebulaTex, new Rectangle(0, 0, w, h), Color.White * 0.9f);
 
-			// 3. Stars + shooting stars
+			// 3. Stars
 			DrawStars(sb, pixel, w, h, dt);
-			DrawShootingStar(sb, pixel, w, h, dt);
 
 			// 4. Moon (the Human Council's server lives up there...)
 			DrawMoon(sb, w, h);
@@ -157,10 +156,13 @@ namespace AutomataMusic.UI
 				DrawWarDestruction(sb, h, dt);
 			}
 
-			// 6. Sunrise on the limb + lens flare
+			// 6. Atmospheric asteroid / bolide re-entry (close to Earth, burning in atmosphere)
+			DrawShootingStar(sb, pixel, w, h, dt);
+
+			// 7. Sunrise on the limb + lens flare
 			DrawSun(sb, w, h);
 
-			// 7. YoRHa Orbital Satellite Base // "The Bunker"
+			// 8. YoRHa Orbital Satellite Base // "The Bunker"
 			DrawBunker(sb, w, h);
 		}
 
@@ -983,31 +985,80 @@ namespace AutomataMusic.UI
 			{
 				shootLife -= dt;
 				shootPos += shootVel * dt;
-				float t = 1f - shootLife / shootMax;
-				float fade = (float)Math.Sin(t * Math.PI);
+				float t = 1f - shootLife / shootMax; // [0..1] progress
+
+				// Burning curve: heats up gradually upon entering upper atmosphere, reaches peak ablation, then burns up
+				float fade = (float)Math.Sin(Math.Pow(t, 0.75) * Math.PI);
 				Vector2 dirN = Vector2.Normalize(shootVel);
 				float angle = (float)Math.Atan2(dirN.Y, dirN.X);
+
 				Rectangle src = new Rectangle(0, 0, 1, 1);
-				const int Segs = 14;
-				float segLen = 13f;
+				const int Segs = 26;
+				float segLen = 14f;
+
+				// 1. Fiery incandescent plasma tail
 				for (int k = 0; k < Segs; k++)
 				{
 					Vector2 p = shootPos - dirN * (k * segLen);
-					float a = fade * (1f - k / (float)Segs);
-					sb.Draw(pixel, p, src, new Color(235, 240, 255, 0) * (a * 0.8f), angle, Vector2.Zero, new Vector2(segLen, k < 3 ? 2f : 1f), SpriteEffects.None, 0f);
+					float segFrac = 1f - k / (float)Segs;
+					float segAlpha = fade * (float)Math.Pow(segFrac, 1.4);
+
+					// Color transition: white-hot at head -> bright amber/orange -> dark smoke crimson at tail
+					Color trailCol = (k < 4)
+						? Color.Lerp(new Color(255, 250, 220, 0), new Color(255, 170, 40, 0), k / 4f)
+						: Color.Lerp(new Color(255, 150, 30, 0), new Color(220, 45, 15, 0), (k - 4) / (float)(Segs - 4));
+
+					float thick = (k < 4) ? 3.5f : ((k < 12) ? 2.5f : 1.5f);
+					sb.Draw(pixel, p, src, trailCol * (segAlpha * 0.90f), angle, Vector2.Zero, new Vector2(segLen, thick), SpriteEffects.None, 0f);
 				}
-				DrawGlow(sb, shootPos, 6f, 6f, new Color(220, 235, 255, 0) * (fade * 0.6f));
+
+				// 2. Soft atmospheric plasma wake / glowing slipstream
+				float headSize = h * 0.024f * (0.8f + 0.4f * fade);
+				DrawGlow(sb, shootPos - dirN * (headSize * 1.2f), headSize * 2.2f, headSize * 0.8f, new Color(255, 120, 20, 0) * (fade * 0.55f), angle);
+				DrawGlow(sb, shootPos - dirN * (headSize * 2.8f), headSize * 3.5f, headSize * 0.9f, new Color(220, 60, 15, 0) * (fade * 0.35f), angle);
+
+				// 3. Blazing meteor fireball head
+				DrawGlow(sb, shootPos, headSize * 1.5f, headSize * 1.2f, new Color(255, 180, 50, 0) * (fade * 0.80f), angle);
+				DrawGlow(sb, shootPos, headSize * 0.7f, headSize * 0.55f, new Color(255, 245, 210, 0) * (fade * 0.95f), angle);
+				DrawGlow(sb, shootPos, headSize * 0.3f, headSize * 0.3f, new Color(255, 255, 255, 0) * fade);
+
+				// 4. Burning ablation embers shedding behind the head
+				for (int s = 0; s < 4; s++)
+				{
+					float sDist = (s + 1) * 20f + (float)Math.Sin(totalTime * 28.0 + s * 1.7) * 5f;
+					Vector2 sPos = shootPos - dirN * sDist + new Vector2(-dirN.Y, dirN.X) * ((float)Math.Sin(totalTime * 18.0 + s * 2.3) * 3.5f);
+					float sFade = fade * (1f - s * 0.22f);
+					sb.Draw(pixel, new Rectangle((int)sPos.X, (int)sPos.Y, 2, 2), new Color(255, 180, 50, 0) * sFade);
+				}
+
+				// 5. Terminal ablation flare as it burns up in denser atmosphere (near t = 0.82)
+				if (t > 0.72f && t < 0.92f)
+				{
+					float flareProgress = (t - 0.72f) / 0.20f;
+					float flarePulse = (float)Math.Sin(flareProgress * Math.PI);
+					DrawGlow(sb, shootPos, headSize * 3.2f, headSize * 3.2f, new Color(255, 220, 140, 0) * (flarePulse * 0.75f));
+				}
 				return;
 			}
 
 			shootTimer -= dt;
 			if (shootTimer <= 0f)
 			{
-				shootTimer = 7f + (float)fxRand.NextDouble() * 10f;
-				shootMax = shootLife = 0.55f + (float)fxRand.NextDouble() * 0.35f;
-				shootPos = new Vector2(w * (0.30f + (float)fxRand.NextDouble() * 0.65f), h * (0.04f + (float)fxRand.NextDouble() * 0.30f));
-				float ang = MathHelper.ToRadians(150f + (float)fxRand.NextDouble() * 25f);
-				float speed = w * (0.45f + (float)fxRand.NextDouble() * 0.25f);
+				shootTimer = 9f + (float)fxRand.NextDouble() * 12f;
+				// Burn duration: 2.4s to 3.4s (realistic bolide atmospheric burn)
+				shootMax = shootLife = 2.4f + (float)fxRand.NextDouble() * 1.0f;
+
+				// Spawn close to Earth's horizon / upper atmospheric boundary
+				float startX = w * (0.35f + (float)fxRand.NextDouble() * 0.45f);
+				float horizY = HorizonY(startX);
+				// Plunge from upper atmosphere boundary down toward the clouds/horizon
+				float startY = horizY - h * (0.05f + (float)fxRand.NextDouble() * 0.08f);
+				shootPos = new Vector2(startX, startY);
+
+				// Direction: trajectory plunging downwards towards Earth's surface
+				bool rightToLeft = fxRand.NextDouble() < 0.65;
+				float ang = MathHelper.ToRadians(rightToLeft ? (140f + (float)fxRand.NextDouble() * 25f) : (25f + (float)fxRand.NextDouble() * 25f));
+				float speed = w * (0.13f + (float)fxRand.NextDouble() * 0.06f);
 				shootVel = new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * speed;
 			}
 		}

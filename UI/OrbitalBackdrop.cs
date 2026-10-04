@@ -103,7 +103,7 @@ namespace AutomataMusic.UI
 		private static float warSpawnTimer = 1.6f;
 		private static Vector2 lastWarPos;
 
-		private static float shootTimer = 4f, shootLife, shootMax;
+		private static float shootTimer = 16f, shootLife, shootMax;
 		private static Vector2 shootPos, shootVel;
 		private static int shootVariant;
 		private static bool explodeTriggered;
@@ -1103,18 +1103,7 @@ namespace AutomataMusic.UI
 				Vector2 dirN = Vector2.Normalize(shootVel);
 				float angle = (float)Math.Atan2(dirN.Y, dirN.X);
 
-				// Phase 1: Cold unburnt tumbling space rock in orbit (no burning at all!)
-				const float igniteThreshold = 0.28f;
-				if (t < igniteThreshold)
-				{
-					float entryFade = MathHelper.Clamp(t / 0.08f, 0f, 1f);
-					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 2.8f, entryFade, heat: 0f);
-					return;
-				}
-
-				float heat = MathHelper.Clamp((t - igniteThreshold) / 0.18f, 0f, 1f);
-
-				// Phase 2: Variant 1 (Explosive airburst flash for a second, then fades away)
+				// Variant 1: Asteroid flies in, increases in brightness, then flashes in an airburst explosion for 1s and fades away
 				if (shootVariant == 1)
 				{
 					const float explodeT = 0.50f;
@@ -1127,7 +1116,7 @@ namespace AutomataMusic.UI
 						}
 
 						// Airburst flash: expands rapidly, flashes brilliant white-cyan for ~1s, then fades away
-						float expT = (t - explodeT) / (1f - explodeT); // [0..1] over ~1 second
+						float expT = (t - explodeT) / (1f - explodeT); // [0..1] over ~1.6 seconds
 						float flashIntensity = expT < 0.10f
 							? (expT / 0.10f)
 							: (float)Math.Pow(1f - expT, 1.8);
@@ -1157,45 +1146,57 @@ namespace AutomataMusic.UI
 					}
 					else
 					{
-						// Heating up before exploding
-						float igniteFade = (t - igniteThreshold) / (explodeT - igniteThreshold);
-						float tailLen = 95f * igniteFade;
-						DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, igniteFade, tailLen);
-						DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.5f, 1f, heat);
+						// Flying in, increasing in brightness up to the explosion point
+						float preFade = t / explodeT; // [0..1]
+						float brightness = (float)Math.Pow(preFade, 1.6);
+						float tailLen = 100f * brightness;
+
+						if (brightness > 0.08f)
+						{
+							DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, brightness, tailLen);
+						}
+						DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.5f, 1f, brightness);
 						return;
 					}
 				}
 
-				// Phase 3: Atmospheric entry & sleek burning streak (Variant 0)
-				float burnProgress = (t - igniteThreshold) / (1f - igniteThreshold);
-				float fade = (float)Math.Sin(burnProgress * Math.PI);
-				float trailLength = Math.Min(150f, 40f + 110f * (float)Math.Sin(burnProgress * Math.PI * 0.5));
+				// Variant 0: Orbital Bypass (skimming upper atmosphere across orbit, increasing brightness and fading away)
+				// Smooth bell curve for brightness: starts cold, swells to brilliant peak, then gently dissolves into space
+				float overallBrightness = (float)Math.Sin(t * Math.PI); // [0..1..0]
+				float burnFade = (float)Math.Pow(overallBrightness, 1.3);
 
-				DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, fade, trailLength);
-				DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4f, fade * 0.95f, heat);
+				// Heat glow and thermal wake scale smoothly with brightness
+				float rockAlpha = MathHelper.Clamp(overallBrightness * 2.2f, 0.2f, 1f);
+				float trailLength = Math.Min(150f, 150f * burnFade);
+
+				if (burnFade > 0.05f)
+				{
+					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, burnFade, trailLength);
+				}
+				DrawAsteroidRock(sb, pixel, shootPos, totalTime * 3.5f, rockAlpha, burnFade);
 				return;
 			}
 
 			shootTimer -= dt;
 			if (shootTimer <= 0f)
 			{
-				shootTimer = 6f + (float)fxRand.NextDouble() * 8f;
-				shootMax = shootLife = 2.6f + (float)fxRand.NextDouble() * 0.8f;
-				shootVariant = fxRand.Next(2); // 0 = Standard atmospheric burn, 1 = Exploding airburst flash
+				// Infrequent: spawns only once every 22 to 48 seconds
+				shootTimer = 22f + (float)fxRand.NextDouble() * 26f;
+				shootMax = shootLife = 3.2f + (float)fxRand.NextDouble() * 1.0f;
+				shootVariant = fxRand.Next(2); // 0 = Flying by, increasing brightness and fading away; 1 = Exploding airburst flash
 				explodeTriggered = false;
 				explodePos = Vector2.Zero;
 
-				// Spawn close to Earth's horizon / upper atmospheric boundary
-				float startX = w * (0.30f + (float)fxRand.NextDouble() * 0.50f);
+				// Spawn comfortably in upper orbit / thermosphere above Earth's horizon (horizontal bypass, never hits Earth)
+				bool rightToLeft = fxRand.NextDouble() < 0.55;
+				float startX = rightToLeft ? (w * (0.75f + (float)fxRand.NextDouble() * 0.15f)) : (w * (0.10f + (float)fxRand.NextDouble() * 0.15f));
 				float horizY = HorizonY(startX);
-				// Plunge from upper atmosphere boundary down toward the clouds/horizon
-				float startY = horizY - h * (0.05f + (float)fxRand.NextDouble() * 0.08f);
+				float startY = horizY - h * (0.09f + (float)fxRand.NextDouble() * 0.10f);
 				shootPos = new Vector2(startX, startY);
 
-				// Direction: steep/shallow trajectory falling downwards towards Earth
-				bool rightToLeft = fxRand.NextDouble() < 0.65;
-				float ang = MathHelper.ToRadians(rightToLeft ? (140f + (float)fxRand.NextDouble() * 22f) : (25f + (float)fxRand.NextDouble() * 22f));
-				float speed = w * (0.13f + (float)fxRand.NextDouble() * 0.05f);
+				// Direction: horizontal orbital bypass across the upper atmosphere curve
+				float ang = MathHelper.ToRadians(rightToLeft ? (182f - (float)fxRand.NextDouble() * 8f) : (-2f + (float)fxRand.NextDouble() * 8f));
+				float speed = w * (0.15f + (float)fxRand.NextDouble() * 0.05f);
 				shootVel = new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * speed;
 			}
 		}

@@ -91,7 +91,7 @@ namespace AutomataMusic.UI
 
 		private const int MaxWarFlashes = 24;
 		private static readonly WarFlash[] warFlashes = new WarFlash[MaxWarFlashes];
-		private static float warSpawnTimer = 0.2f;
+		private static float warSpawnTimer = 1.6f;
 		private static Vector2 lastWarPos;
 
 		private static float shootTimer = 5f, shootLife, shootMax;
@@ -737,15 +737,15 @@ namespace AutomataMusic.UI
 			if (nightSpots.Count == 0)
 				return;
 
-			// Spawn war events across Earth's dark side and frontline
+			// Spawn war events across Earth's dark side and frontline (subtle, spaced-out cadence)
 			warSpawnTimer -= dt;
 			if (warSpawnTimer <= 0f)
 			{
-				warSpawnTimer = 0.08f + (float)fxRand.NextDouble() * 0.22f;
+				warSpawnTimer = 1.4f + (float)fxRand.NextDouble() * 2.2f;
 				SpawnWarFlash(h);
 
-				// 35% chance for a rapid consecutive cluster strike nearby
-				if (fxRand.NextDouble() < 0.35)
+				// Rare chance for a rapid consecutive cluster strike nearby
+				if (fxRand.NextDouble() < 0.20)
 				{
 					SpawnWarFlash(h, cluster: true);
 				}

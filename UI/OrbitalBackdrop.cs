@@ -27,8 +27,8 @@ namespace AutomataMusic.UI
 		private const float HorizonTop = 0.62f;      // horizon height at screen centre (fraction of screen height)
 		private const float RadiusFactor = 1.05f;    // planet radius as fraction of screen width
 		private const float AtmThickness = 0.026f;   // atmosphere glow thickness, in planet radii
-		private const float LandSpin = 1.15f;        // map columns per second
-		private const float CloudSpin = 1.40f;       // clouds drift slightly faster than the ground
+		private const float LandSpin = 2.4f;         // map columns per second (smooth, synced orbital rotation)
+		private const float CloudSpin = 3.0f;        // clouds drift slightly faster than the ground
 		private const int MoonSize = 160;
 		private const int NebW = 480, NebH = 270;
 
@@ -63,7 +63,6 @@ namespace AutomataMusic.UI
 		private static float totalTime;
 		private static float landRot, cloudRot;
 		private static float planetFade;
-		private static int frameCounter;
 		private static readonly Random fxRand = new Random(2027);
 
 		private struct Star
@@ -125,8 +124,7 @@ namespace AutomataMusic.UI
 				if (landRot > MapW) landRot -= MapW;
 				if (cloudRot > MapW) cloudRot -= MapW;
 
-				if ((frameCounter++ & 1) == 0 || planetFade < 1f)
-					UpdatePlanet();
+				UpdatePlanet();
 
 				sb.Draw(planetTex, new Rectangle(0, bufTop, bufW * bufDiv, bufH * bufDiv), Color.White * planetFade);
 
@@ -586,29 +584,45 @@ namespace AutomataMusic.UI
 
 		private static void UpdatePlanet()
 		{
-			int landOff = (int)landRot;
-			int cloudOff = (int)cloudRot;
+			int l0 = (int)Math.Floor(landRot);
+			float lFrac = landRot - l0;
+			int l1 = (l0 + 1) & (MapW - 1);
+
+			int c0 = (int)Math.Floor(cloudRot);
+			float cFrac = cloudRot - c0;
+			int c1 = (c0 + 1) & (MapW - 1);
+
 			const int mask = MapW - 1;
 			float[] lr = landR, lg = landG, lb = landB, cm = cloudMap;
 			const float cR = 0.93f, cG = 0.94f, cB = 0.96f;
 
-			for (int p = 0; p < planetCount; p++)
+			Parallel.For(0, planetCount, p =>
 			{
 				int row = pRowOff[p];
 				int baseCol = (int)pLon[p];
-				int li = row + ((baseCol + landOff) & mask);
-				float cloud = cm[row + ((baseCol + cloudOff) & mask)];
+
+				int li0 = row + ((baseCol + l0) & mask);
+				int li1 = row + ((baseCol + l1) & mask);
+				float landR_val = lr[li0] + (lr[li1] - lr[li0]) * lFrac;
+				float landG_val = lg[li0] + (lg[li1] - lg[li0]) * lFrac;
+				float landB_val = lb[li0] + (lb[li1] - lb[li0]) * lFrac;
+
+				int ci0 = row + ((baseCol + c0) & mask);
+				int ci1 = row + ((baseCol + c1) & mask);
+				float cloud = cm[ci0] + (cm[ci1] - cm[ci0]) * cFrac;
 				float inv = 1f - cloud;
 
-				float sr = lr[li] * inv + cR * cloud;
-				float sg = lg[li] * inv + cG * cloud;
-				float sb = lb[li] * inv + cB * cloud;
+				float sr = landR_val * inv + cR * cloud;
+				float sg = landG_val * inv + cG * cloud;
+				float sb = landB_val * inv + cB * cloud;
 
 				int r = (int)((sr * pKr[p] + pAr[p]) * 255f);
 				int g = (int)((sg * pKg[p] + pAg[p]) * 255f);
 				int b = (int)((sb * pKb[p] + pAb[p]) * 255f);
-				buffer[pIndex[p]] = new Color(r > 255 ? 255 : r, g > 255 ? 255 : g, b > 255 ? 255 : b, 255);
-			}
+				buffer[pIndex[p]] = new Color(r > 255 ? 255 : (r < 0 ? 0 : r),
+				                              g > 255 ? 255 : (g < 0 ? 0 : g),
+				                              b > 255 ? 255 : (b < 0 ? 0 : b), 255);
+			});
 
 			planetTex.SetData(buffer);
 		}
@@ -763,63 +777,30 @@ namespace AutomataMusic.UI
 			if (bunker.IsDisposed)
 				return;
 
-			// Microgravity orbital hover & sway
+			// Microgravity orbital hover & sway (floating gracefully on the left side of orbit)
 			float bobY = (float)Math.Sin(totalTime * 0.45f) * (h * 0.008f);
 			float swayX = (float)Math.Cos(totalTime * 0.32f) * (w * 0.005f);
-			Vector2 center = new Vector2(w * 0.77f + swayX, h * 0.38f + bobY);
+			Vector2 center = new Vector2(w * 0.23f + swayX, h * 0.38f + bobY);
 
-			// Majestic axial rotation in orbit
+			// Majestic axial rotation in orbit (smooth, synced with orbital drift)
 			float rotation = totalTime * 0.038f;
 
 			// Subtle 3D perspective breathing
 			float scaleWobble = 1f + 0.015f * (float)Math.Sin(totalTime * 0.5f);
-			float baseSize = h * 0.33f;
+			float baseSize = h * 0.30f;
 			float drawSize = baseSize * scaleWobble;
 			float scale = drawSize / (float)bunker.Width;
 
 			Vector2 origin = new Vector2(bunker.Width * 0.5f, bunker.Height * 0.5f);
 
-			// 1. Soft Earth-shine / atmospheric back-glow
-			float glowSize = drawSize * 0.95f;
-			DrawGlow(sb, center, glowSize, glowSize, new Color(90, 150, 220, 0) * (0.16f * planetFade));
+			// 1. Soft atmospheric back-glow / Earth-shine directly behind the station
+			float glowSize = drawSize * 0.90f;
+			DrawGlow(sb, center, glowSize, glowSize, new Color(90, 150, 220, 0) * (0.14f * planetFade));
 
 			// 2. Main YoRHa Bunker Station Body
+			// All station lights (spire beacon, docking bays, hull lamps) are authentically integrated into the 3D model
 			Color bunkerColor = new Color(245, 248, 255) * planetFade;
 			sb.Draw(bunker, center, null, bunkerColor, rotation, origin, scale, SpriteEffects.None, 0f);
-
-			// 3. Active Station Navigation Beacons (pulsing lights that rotate with the station)
-			// Navigation beacon on command tower spire (center of station):
-			float greenStrobe = (float)Math.Pow(Math.Max(0f, Math.Sin(totalTime * 3.8f)), 14);
-			if (greenStrobe > 0.05f)
-			{
-				DrawGlow(sb, center, 14f, 14f, new Color(140, 255, 180, 0) * (greenStrobe * 0.9f * planetFade));
-				DrawGlow(sb, center, 4f, 4f, new Color(255, 255, 255, 0) * (greenStrobe * planetFade));
-			}
-
-			// Red & Amber docking beacons on outer ring perimeter (rotating with the station)
-			float redStrobe = (float)Math.Pow(Math.Max(0f, Math.Cos(totalTime * 3.2f)), 12);
-			if (redStrobe > 0.05f)
-			{
-				float ringRadius = drawSize * 0.44f;
-				for (int i = 0; i < 4; i++)
-				{
-					float angle = rotation + i * MathHelper.PiOver2 + MathHelper.PiOver4;
-					Vector2 beaconPos = center + new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * ringRadius;
-					Color beaconCol = (i % 2 == 0) ? new Color(255, 100, 90, 0) : new Color(255, 190, 90, 0);
-					DrawGlow(sb, beaconPos, 10f, 10f, beaconCol * (redStrobe * 0.85f * planetFade));
-				}
-			}
-
-			// Cyan RCS attitude thruster stabilization puff every ~12 seconds
-			float rcsCycle = (totalTime * 0.08f) % 1f; // cycles every 12.5s
-			if (rcsCycle < 0.045f) // fires for ~0.56s
-			{
-				float rcsLife = rcsCycle / 0.045f;
-				float rcsFade = (float)Math.Sin(rcsLife * Math.PI);
-				float thrusterAngle = rotation + MathHelper.PiOver2 * 1.5f;
-				Vector2 thrusterPos = center + new Vector2((float)Math.Cos(thrusterAngle), (float)Math.Sin(thrusterAngle)) * (drawSize * 0.46f);
-				DrawGlow(sb, thrusterPos, 18f * rcsFade, 10f * rcsFade, new Color(100, 220, 255, 0) * (rcsFade * 0.75f * planetFade), thrusterAngle + MathHelper.PiOver2);
-			}
 		}
 
 		private static void DrawSun(SpriteBatch sb, int w, int h)
@@ -827,7 +808,7 @@ namespace AutomataMusic.UI
 			if (cachedW <= 0)
 				return;
 
-			float sxp = w * 0.17f;
+			float sxp = w * 0.10f;
 			Vector2 sun = new Vector2(sxp, HorizonY(sxp) - h * 0.004f);
 			float pulse = 1f + 0.035f * (float)Math.Sin(totalTime * 1.3f);
 			float fade = 0.35f + 0.65f * planetFade;

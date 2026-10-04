@@ -103,11 +103,8 @@ namespace AutomataMusic.UI
 		private static float warSpawnTimer = 1.6f;
 		private static Vector2 lastWarPos;
 
-		private static float shootTimer = 4f, shootLife, shootMax;
+		private static float shootTimer = 3.5f, shootLife, shootMax;
 		private static Vector2 shootPos, shootVel;
-		private static int shootVariant;
-		private static bool explodeTriggered;
-		private static Vector2 explodePos;
 
 		// ═════════════════════════════════════════════════════════════
 		//  Public API
@@ -982,20 +979,7 @@ namespace AutomataMusic.UI
 			}
 		}
 
-		private struct ExpFragment
-		{
-			public Vector2 Vel;
-			public float Size;
-		}
-		private static readonly ExpFragment[] expFrags = new ExpFragment[6]
-		{
-			new ExpFragment { Vel = new Vector2(-1.2f, -0.6f), Size = 2f },
-			new ExpFragment { Vel = new Vector2( 1.1f, -0.8f), Size = 2f },
-			new ExpFragment { Vel = new Vector2(-0.7f,  1.1f), Size = 3f },
-			new ExpFragment { Vel = new Vector2( 1.3f,  0.7f), Size = 2f },
-			new ExpFragment { Vel = new Vector2(-1.5f,  0.2f), Size = 2f },
-			new ExpFragment { Vel = new Vector2( 0.4f, -1.3f), Size = 3f },
-		};
+
 
 		private static void DrawAsteroidRock(SpriteBatch sb, Texture2D pixel, Vector2 pos, float rot, float alpha, float heat = 0f, float scale = 1f)
 		{
@@ -1102,7 +1086,7 @@ namespace AutomataMusic.UI
 				shootLife -= dt;
 				float t = MathHelper.Clamp(1f - shootLife / shootMax, 0f, 1f); // [0..1] continuous progress
 
-				const float igniteThreshold = 0.20f; // Ignites when entering denser mesosphere
+				const float igniteThreshold = 0.40f; // Flies cold longer; ignites later when penetrating upper mesosphere
 
 				// When it starts burning, Earth's gravity curves its trajectory down into the upper atmosphere
 				if (t >= igniteThreshold)
@@ -1146,79 +1130,11 @@ namespace AutomataMusic.UI
 				// and smoothly burns away / fades away into the atmosphere!
 				// ═════════════════════════════════════════════════════════════════
 				float burnProgress = (t - igniteThreshold) / (1f - igniteThreshold); // [0..1]
+				const float peakBurn = 0.48f; // Peak intensity point
+
 				float intensity;
 				float rockScale;
 				float rockAlpha;
-				float trailLen;
-
-				// Variant 1 (25% chance): Terminal bolide flare at peak heat, then smoothly fades away
-				if (shootVariant == 1)
-				{
-					const float flareStart = 0.50f;
-					if (t < flareStart)
-					{
-						// Heating up and curving into Earth prior to flare
-						float preT = (t - igniteThreshold) / (flareStart - igniteThreshold); // 0 -> 1
-						intensity = (float)Math.Sin(preT * Math.PI * 0.5); // 0 -> 1
-						trailLen = 140f * intensity;
-
-						DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, intensity, trailLen);
-
-						// Fiery thermal head glow
-						DrawGlow(sb, shootPos, 20f * intensity, 20f * intensity, new Color(255, 200, 110, 0) * (intensity * 0.80f));
-						DrawGlow(sb, shootPos, 36f * intensity, 36f * intensity, new Color(175, 220, 255, 0) * (intensity * 0.45f));
-
-						rockScale = 1.0f - 0.15f * intensity;
-						DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.2f, 1f, intensity, rockScale);
-					}
-					else
-					{
-						if (!explodeTriggered)
-						{
-							explodeTriggered = true;
-							explodePos = shootPos;
-						}
-
-						float flareT = (t - flareStart) / (1f - flareStart); // 0 -> 1 over remaining ~1.8 seconds
-
-						// Continuous, smooth fade-out to guaranteed 0.0 at flareT = 1.0
-						float flareFade = (float)Math.Cos(flareT * Math.PI * 0.5); // 1.0 -> 0.0
-						float flashIntensity = (float)Math.Pow(flareFade, 1.5);
-
-						// Detonation core flash pulse (peaks quickly, then diffuses into the atmosphere)
-						float pulse = flareT < 0.15f
-							? (flareT / 0.15f)
-							: (float)Math.Pow(1f - (flareT - 0.15f) / 0.85f, 1.8);
-
-						float bloom = h * (0.025f + 0.065f * flareT);
-
-						// Expanding white-hot plasma core
-						DrawGlow(sb, explodePos, bloom * 1.5f, bloom * 1.5f, new Color(255, 255, 255, 0) * (pulse * 0.95f));
-						// Ionization airglow shockwave halo
-						DrawGlow(sb, explodePos, bloom * 2.8f, bloom * 2.8f, new Color(175, 225, 255, 0) * (flashIntensity * 0.70f));
-						// Outer diffusing atmospheric cloud
-						DrawGlow(sb, explodePos, bloom * 4.0f, bloom * 4.0f, new Color(140, 195, 255, 0) * (flashIntensity * 0.35f));
-
-						// Trailing fragments dissolving into embers
-						for (int f = 0; f < expFrags.Length; f++)
-						{
-							Vector2 fPos = explodePos + expFrags[f].Vel * (flareT * 40f) + shootVel * (flareT * 0.3f);
-							float fFade = (float)Math.Sin(flareT * Math.PI) * (1f - flareT);
-							if (fFade > 0.01f)
-							{
-								sb.Draw(pixel, new Rectangle((int)fPos.X, (int)fPos.Y, (int)expFrags[f].Size, (int)expFrags[f].Size), new Color(255, 225, 170, 0) * fFade);
-								DrawGlow(sb, fPos, 7f, 7f, new Color(255, 185, 90, 0) * (fFade * 0.55f));
-							}
-						}
-					}
-					return;
-				}
-
-				// ═════════════════════════════════════════════════════════════════
-				// Variant 0 (75% chance): Canonical Atmospheric Burn-Away
-				// "starts on fire, intensity increases, burns away and fades away to the atmosphere"
-				// ═════════════════════════════════════════════════════════════════
-				const float peakBurn = 0.46f; // Peak intensity point
 
 				if (burnProgress < peakBurn)
 				{
@@ -1241,7 +1157,7 @@ namespace AutomataMusic.UI
 				}
 
 				// Ionization plasma trail
-				trailLen = 160f * intensity;
+				float trailLen = 160f * intensity;
 				if (intensity > 0.005f)
 				{
 					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, intensity, trailLen);
@@ -1264,10 +1180,7 @@ namespace AutomataMusic.UI
 			{
 				// Infrequent: spawns only once every 24 to 48 seconds
 				shootTimer = 24f + (float)fxRand.NextDouble() * 24f;
-				shootMax = shootLife = 3.6f + (float)fxRand.NextDouble() * 0.6f;
-				shootVariant = fxRand.NextDouble() < 0.25 ? 1 : 0; // 75% Canonical burn-away, 25% Terminal bolide flare
-				explodeTriggered = false;
-				explodePos = Vector2.Zero;
+				shootMax = shootLife = 3.8f + (float)fxRand.NextDouble() * 0.4f;
 
 				// Spawn high in starry space above Earth
 				bool rightToLeft = fxRand.NextDouble() < 0.55;

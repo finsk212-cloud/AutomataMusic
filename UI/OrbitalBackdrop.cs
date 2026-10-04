@@ -76,8 +76,24 @@ namespace AutomataMusic.UI
 		}
 		private static Star[] stars;
 
-		private static float lightningTimer = 1.5f, lightningLife, lightningMax;
-		private static Vector2 lightningPos;
+		private struct WarFlash
+		{
+			public bool Active;
+			public Vector2 Pos;
+			public float Life;
+			public float MaxLife;
+			public float BaseSize;
+			public int Type; // 0 = Plasma Detonation, 1 = Crimson Machine Laser Strike, 2 = Warzone Embers, 3 = EMP Shock Discharge
+			public Color PrimaryCol;
+			public Color CoreCol;
+			public float Angle;
+		}
+
+		private const int MaxWarFlashes = 24;
+		private static readonly WarFlash[] warFlashes = new WarFlash[MaxWarFlashes];
+		private static float warSpawnTimer = 0.2f;
+		private static Vector2 lastWarPos;
+
 		private static float shootTimer = 5f, shootLife, shootMax;
 		private static Vector2 shootPos, shootVel;
 
@@ -128,7 +144,7 @@ namespace AutomataMusic.UI
 
 				sb.Draw(planetTex, new Rectangle(0, bufTop, bufW * bufDiv, bufH * bufDiv), Color.White * planetFade);
 
-				DrawLightning(sb, h, dt);
+				DrawWarDestruction(sb, h, dt);
 			}
 
 			// 6. Sunrise on the limb + lens flare
@@ -145,6 +161,7 @@ namespace AutomataMusic.UI
 			bunkerTexture = null;
 			texturesBuilt = false;
 			cachedW = cachedH = -1;
+			Array.Clear(warFlashes, 0, warFlashes.Length);
 			Main.QueueMainThreadAction(() =>
 			{
 				foreach (var t in all)
@@ -627,31 +644,170 @@ namespace AutomataMusic.UI
 			planetTex.SetData(buffer);
 		}
 
-		private static void DrawLightning(SpriteBatch sb, int h, float dt)
+		private static void SpawnWarFlash(int h, bool cluster = false)
 		{
 			if (nightSpots.Count == 0)
 				return;
 
-			if (lightningLife > 0f)
+			int slot = -1;
+			for (int i = 0; i < MaxWarFlashes; i++)
 			{
-				lightningLife -= dt;
-				float t = 1f - lightningLife / lightningMax;
-				float flicker = (float)(0.55 + 0.45 * Math.Sin(t * 38.0)) * (1f - t);
-				if (flicker > 0f)
+				if (!warFlashes[i].Active)
 				{
-					float s = h * 0.03f;
-					DrawGlow(sb, lightningPos, s * 1.4f, s, new Color(150, 180, 255, 0) * (0.35f * flicker * planetFade));
-					DrawGlow(sb, lightningPos, s * 0.25f, s * 0.2f, new Color(230, 240, 255, 0) * (0.8f * flicker * planetFade));
+					slot = i;
+					break;
 				}
+			}
+			if (slot == -1)
+				slot = fxRand.Next(MaxWarFlashes);
+
+			Vector2 pos;
+			if (cluster && lastWarPos != Vector2.Zero)
+			{
+				float offsetDist = (float)(fxRand.NextDouble() * h * 0.035f + h * 0.005f);
+				float offsetAngle = (float)(fxRand.NextDouble() * MathHelper.TwoPi);
+				pos = lastWarPos + new Vector2((float)Math.Cos(offsetAngle), (float)Math.Sin(offsetAngle)) * offsetDist;
 			}
 			else
 			{
-				lightningTimer -= dt;
-				if (lightningTimer <= 0f)
+				pos = nightSpots[fxRand.Next(nightSpots.Count)];
+			}
+			lastWarPos = pos;
+
+			double roll = fxRand.NextDouble();
+			int type;
+			float maxLife;
+			float baseSize;
+			Color primCol;
+			Color coreCol;
+
+			if (roll < 0.40)
+			{
+				// Type 0: Plasma Detonation / Heavy Bombardment
+				type = 0;
+				maxLife = 0.35f + (float)fxRand.NextDouble() * 0.25f;
+				baseSize = h * (0.026f + (float)fxRand.NextDouble() * 0.025f);
+				primCol = new Color(255, 135, 35, 0);
+				coreCol = new Color(255, 235, 180, 0);
+			}
+			else if (roll < 0.70)
+			{
+				// Type 1: Crimson Machine Laser Strike
+				type = 1;
+				maxLife = 0.20f + (float)fxRand.NextDouble() * 0.20f;
+				baseSize = h * (0.028f + (float)fxRand.NextDouble() * 0.025f);
+				primCol = new Color(255, 30, 45, 0);
+				coreCol = new Color(255, 190, 200, 0);
+			}
+			else if (roll < 0.90)
+			{
+				// Type 2: Burning Ruined Warzone Fires / Embers
+				type = 2;
+				maxLife = 0.80f + (float)fxRand.NextDouble() * 0.70f;
+				baseSize = h * (0.016f + (float)fxRand.NextDouble() * 0.018f);
+				primCol = new Color(255, 95, 20, 0);
+				coreCol = new Color(255, 205, 80, 0);
+			}
+			else
+			{
+				// Type 3: High-Altitude EMP / Lightning Arc
+				type = 3;
+				maxLife = 0.22f + (float)fxRand.NextDouble() * 0.22f;
+				baseSize = h * (0.028f + (float)fxRand.NextDouble() * 0.028f);
+				primCol = new Color(110, 190, 255, 0);
+				coreCol = new Color(235, 245, 255, 0);
+			}
+
+			warFlashes[slot] = new WarFlash
+			{
+				Active = true,
+				Pos = pos,
+				Life = maxLife,
+				MaxLife = maxLife,
+				BaseSize = baseSize,
+				Type = type,
+				PrimaryCol = primCol,
+				CoreCol = coreCol,
+				Angle = (float)(fxRand.NextDouble() * 0.5 - 0.25)
+			};
+		}
+
+		private static void DrawWarDestruction(SpriteBatch sb, int h, float dt)
+		{
+			if (nightSpots.Count == 0)
+				return;
+
+			// Spawn war events across Earth's dark side and frontline
+			warSpawnTimer -= dt;
+			if (warSpawnTimer <= 0f)
+			{
+				warSpawnTimer = 0.08f + (float)fxRand.NextDouble() * 0.22f;
+				SpawnWarFlash(h);
+
+				// 35% chance for a rapid consecutive cluster strike nearby
+				if (fxRand.NextDouble() < 0.35)
 				{
-					lightningPos = nightSpots[fxRand.Next(nightSpots.Count)];
-					lightningMax = lightningLife = 0.18f + (float)fxRand.NextDouble() * 0.22f;
-					lightningTimer = 0.6f + (float)fxRand.NextDouble() * 3.2f;
+					SpawnWarFlash(h, cluster: true);
+				}
+			}
+
+			for (int i = 0; i < MaxWarFlashes; i++)
+			{
+				if (!warFlashes[i].Active)
+					continue;
+
+				ref WarFlash flash = ref warFlashes[i];
+				flash.Life -= dt;
+				if (flash.Life <= 0f)
+				{
+					flash.Active = false;
+					continue;
+				}
+
+				float norm = 1f - (flash.Life / flash.MaxLife); // [0..1] progress
+
+				switch (flash.Type)
+				{
+					case 0: // Expanding plasma detonation fireball
+					{
+						float expand = flash.BaseSize * (0.5f + 1.25f * norm);
+						float intensity = (norm < 0.15f ? (norm / 0.15f) : (float)Math.Pow(1f - norm, 1.8)) * planetFade;
+						DrawGlow(sb, flash.Pos, expand * 1.5f, expand * 1.2f, flash.PrimaryCol * (0.65f * intensity));
+						DrawGlow(sb, flash.Pos, expand * 0.45f, expand * 0.35f, flash.CoreCol * (0.95f * intensity));
+						break;
+					}
+					case 1: // Crimson Machine Laser Strike
+					{
+						float intensity = (float)Math.Sin(norm * Math.PI) * planetFade;
+
+						// Downward laser strike trace from atmosphere
+						if (norm < 0.65f)
+						{
+							float beamFade = (1f - norm / 0.65f) * planetFade;
+							float beamLen = h * 0.055f;
+							Vector2 beamCenter = flash.Pos - new Vector2((float)Math.Sin(flash.Angle), (float)Math.Cos(flash.Angle)) * (beamLen * 0.45f);
+							DrawGlow(sb, beamCenter, 3.5f, beamLen, flash.PrimaryCol * (0.80f * beamFade), flash.Angle);
+						}
+
+						// Surface impact detonation
+						DrawGlow(sb, flash.Pos, flash.BaseSize * 1.35f, flash.BaseSize * 1.35f, flash.PrimaryCol * (0.85f * intensity));
+						DrawGlow(sb, flash.Pos, flash.BaseSize * 0.35f, flash.BaseSize * 0.35f, flash.CoreCol * (1.0f * intensity));
+						break;
+					}
+					case 2: // Burning warzone fires / ruined city embers
+					{
+						float flicker = (float)(0.65 + 0.35 * Math.Sin(totalTime * 24.0 + flash.Pos.X)) * (1f - norm) * planetFade;
+						DrawGlow(sb, flash.Pos, flash.BaseSize * 1.2f, flash.BaseSize * 0.95f, flash.PrimaryCol * (0.55f * flicker));
+						DrawGlow(sb, flash.Pos, flash.BaseSize * 0.32f, flash.BaseSize * 0.25f, flash.CoreCol * (0.85f * flicker));
+						break;
+					}
+					case 3: // EMP / Shock discharge
+					{
+						float jitter = (float)(0.50 + 0.50 * Math.Sin(norm * 44.0)) * (1f - norm) * planetFade;
+						DrawGlow(sb, flash.Pos, flash.BaseSize * 1.6f, flash.BaseSize * 1.2f, flash.PrimaryCol * (0.75f * jitter));
+						DrawGlow(sb, flash.Pos, flash.BaseSize * 0.38f, flash.BaseSize * 0.28f, flash.CoreCol * (0.95f * jitter));
+						break;
+					}
 				}
 			}
 		}
@@ -750,7 +906,12 @@ namespace AutomataMusic.UI
 			Vector2 c = new Vector2(w * 0.865f, h * 0.16f);
 			float fade = Math.Min(1f, planetFade * 1.5f);
 			DrawGlow(sb, c, size * 1.3f, size * 1.3f, new Color(170, 185, 210, 0) * (0.12f * fade));
-			sb.Draw(moonTex, new Rectangle((int)(c.X - size / 2f), (int)(c.Y - size / 2f), (int)size, (int)size), Color.White * fade);
+
+			// Slow axial rotation of the Moon (ever so slightly)
+			float moonRotation = totalTime * 0.010f;
+			Vector2 origin = new Vector2(MoonSize * 0.5f, MoonSize * 0.5f);
+			float scale = size / (float)MoonSize;
+			sb.Draw(moonTex, c, null, Color.White * fade, moonRotation, origin, scale, SpriteEffects.None, 0f);
 		}
 
 		private static void EnsureBunkerTexture()

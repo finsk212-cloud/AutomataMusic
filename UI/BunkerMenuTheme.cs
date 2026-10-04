@@ -10,7 +10,6 @@ namespace AutomataMusic.UI
 	public static class BunkerMenuTheme
 	{
 		// FX
-		private static float scanLineY = 0f;
 		private static float glitchTimer = 0f;
 		private static float glitchIntensity = 0f;
 
@@ -42,55 +41,22 @@ namespace AutomataMusic.UI
 			// 1. Fully procedural orbital scene (rotating Earth, sunrise, nebula, stars, moon)
 			OrbitalBackdrop.Draw(sb, pixel, screenW, screenH);
 
-			// 2. Tactical Gridlines (54px spacing) with micro-crosshairs
-			DrawTacticalGrid(sb, pixel, screenW, screenH);
+			// 2. Subtle CRT Scanlines
+			DrawScanlines(sb, pixel, screenW, screenH);
 
-			// 3. Subtle CRT Scanlines & Radar Sweep
-			DrawScanlinesAndRadar(sb, pixel, screenW, screenH);
-
-			// 4. Tactical YoRHa Military HUD Framing (Unchanged, clean corner alignment)
+			// 3. Tactical YoRHa Military Corner Brackets
 			DrawTacticalFrame(sb, pixel, screenW, screenH, time);
 
-			// 5. NieR:Automata Stylized Title Card / Logo
+			// 4. NieR:Automata Stylized Title Card / Logo
 			DrawNierTitleCard(sb, pixel, screenW, logoDrawCenter);
 		}
 
-		private static void DrawScanlinesAndRadar(SpriteBatch sb, Texture2D pixel, int screenW, int screenH)
+		private static void DrawScanlines(SpriteBatch sb, Texture2D pixel, int screenW, int screenH)
 		{
-			Color scanlineColor = new Color(0, 0, 0, 16);
+			Color scanlineColor = new Color(0, 0, 0, 14);
 			for (int y = 0; y < screenH; y += 4)
 			{
 				sb.Draw(pixel, new Rectangle(0, y, screenW, 1), scanlineColor);
-			}
-
-			scanLineY += 1.8f;
-			if (scanLineY > screenH) scanLineY = 0f;
-			sb.Draw(pixel, new Rectangle(0, (int)scanLineY, screenW, 2), new Color(210, 200, 170) * 0.09f);
-			sb.Draw(pixel, new Rectangle(0, (int)scanLineY - 8, screenW, 8), new Color(210, 200, 170) * 0.03f);
-		}
-
-		private static void DrawTacticalGrid(SpriteBatch sb, Texture2D pixel, int screenW, int screenH)
-		{
-			Color gridColor = new Color(50, 52, 65) * 0.22f;
-			Color crosshairColor = new Color(195, 185, 155) * 0.30f;
-			int gridSize = 54;
-
-			for (int x = 0; x < screenW; x += gridSize)
-			{
-				sb.Draw(pixel, new Rectangle(x, 0, 1, screenH), gridColor);
-			}
-			for (int y = 0; y < screenH; y += gridSize)
-			{
-				sb.Draw(pixel, new Rectangle(0, y, screenW, 1), gridColor);
-			}
-
-			for (int x = gridSize * 2; x < screenW - gridSize; x += gridSize * 3)
-			{
-				for (int y = gridSize * 2; y < screenH - gridSize; y += gridSize * 3)
-				{
-					sb.Draw(pixel, new Rectangle(x - 3, y, 7, 1), crosshairColor);
-					sb.Draw(pixel, new Rectangle(x, y - 3, 1, 7), crosshairColor);
-				}
 			}
 		}
 
@@ -102,13 +68,6 @@ namespace AutomataMusic.UI
 			int thick = 2;
 
 			Color frameBeige = new Color(230, 220, 190) * 0.90f;
-			Color faintBorder = new Color(185, 175, 150) * 0.20f;
-
-			// Connecting faint boundary line
-			sb.Draw(pixel, new Rectangle(inset, inset, screenW - inset * 2, 1), faintBorder);
-			sb.Draw(pixel, new Rectangle(inset, screenH - inset, screenW - inset * 2, 1), faintBorder);
-			sb.Draw(pixel, new Rectangle(inset, inset, 1, screenH - inset * 2), faintBorder);
-			sb.Draw(pixel, new Rectangle(screenW - inset, inset, 1, screenH - inset * 2), faintBorder);
 
 			// Corner brackets ┌ ┐ └ ┘
 			// Top-Left ┌
@@ -140,8 +99,8 @@ namespace AutomataMusic.UI
 			int padX = 14;
 			int padY = 8;
 
-			string tlHeader = "[ YoRHa SATELLITE ORBITAL BASE // \"THE BUNKER\" ]";
-			string tlSub = "SECURITY: LEVEL 4 // COMM-LINK: STABLE // OPERATOR: 6O";
+			string tlHeader = "[ YoRHa ORBITAL PATROL // BUNKER PERIMETER ]";
+			string tlSub = "TARGET: THE BUNKER [IN VIEW] // COMM: STABLE // OPERATOR: 6O";
 
 			Utils.DrawBorderString(sb, tlHeader, new Vector2(inset + padX, inset + padY), new Color(245, 236, 212), textScale);
 			Utils.DrawBorderString(sb, tlSub, new Vector2(inset + padX, inset + padY + 18), new Color(180, 175, 160) * 0.90f, subScale);
@@ -165,16 +124,6 @@ namespace AutomataMusic.UI
 
 			// Bottom-Right Corner: Audio visualizer
 			DrawAudioVisualizer(sb, pixel, screenW - inset - padX, screenH - inset - padY, time);
-
-			// Left border altitude ruler
-			int rulerYStart = screenH / 2 - 100;
-			for (int r = 0; r < 7; r++)
-			{
-				int ry = rulerYStart + r * 28;
-				int rw = (r % 2 == 0) ? 8 : 4;
-				sb.Draw(pixel, new Rectangle(inset + 4, ry, rw, 1), frameBeige * 0.50f);
-			}
-			Utils.DrawBorderString(sb, "ELEV: 35,420M", new Vector2(inset + 16, rulerYStart - 16), new Color(175, 165, 145) * 0.70f, 0.55f);
 		}
 
 		private static void DrawAudioVisualizer(SpriteBatch sb, Texture2D pixel, int rightX, int bottomY, float time)

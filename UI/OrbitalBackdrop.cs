@@ -103,7 +103,7 @@ namespace AutomataMusic.UI
 		private static float warSpawnTimer = 1.6f;
 		private static Vector2 lastWarPos;
 
-		private static float shootTimer = 3.5f, shootLife, shootMax;
+		private static float shootTimer = 2.5f, shootLife, shootMax;
 		private static Vector2 shootPos, shootVel;
 
 		// ═════════════════════════════════════════════════════════════
@@ -1086,7 +1086,7 @@ namespace AutomataMusic.UI
 				shootLife -= dt;
 				float t = MathHelper.Clamp(1f - shootLife / shootMax, 0f, 1f); // [0..1] continuous progress
 
-				const float igniteThreshold = 0.40f; // Flies cold longer; ignites later when penetrating upper mesosphere
+				const float igniteThreshold = 0.44f; // Flies cold across deep space; ignites later when getting close to Earth
 
 				// Straight flight path across the sky toward Earth (no curving or trajectory flicking)
 				shootPos += shootVel * dt;
@@ -1099,17 +1099,17 @@ namespace AutomataMusic.UI
 				// ═════════════════════════════════════════════════════════════════
 				if (t < igniteThreshold)
 				{
-					float entryFade = MathHelper.Clamp(t / 0.06f, 0f, 1f);
+					float entryFade = MathHelper.Clamp(t / 0.05f, 0f, 1f);
 					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 2.8f, entryFade, heat: 0f, scale: 1f);
 					return;
 				}
 
 				// ═════════════════════════════════════════════════════════════════
-				// Phase 2 & 3: Starts on fire, intensity swells, burns away,
-				// and smoothly fades away into the atmosphere!
+				// Phase 2 & 3: Starts on fire close to Earth, burns longer,
+				// intensity swells, and smoothly fades away into the atmosphere!
 				// ═════════════════════════════════════════════════════════════════
 				float burnProgress = (t - igniteThreshold) / (1f - igniteThreshold); // [0..1]
-				const float peakBurn = 0.48f; // Peak intensity point
+				const float peakBurn = 0.45f; // Peak intensity point
 
 				float intensity;
 				float rockScale;
@@ -1120,7 +1120,7 @@ namespace AutomataMusic.UI
 					// Starts on fire -> intensity builds smoothly to peak
 					float ramp = burnProgress / peakBurn; // 0 -> 1
 					intensity = (float)Math.Sin(ramp * Math.PI * 0.5); // 0.0 -> 1.0 smoothly
-					rockScale = 1.0f - 0.15f * ramp; // 1.0 -> 0.85
+					rockScale = 1.0f - 0.12f * ramp; // 1.0 -> 0.88
 					rockAlpha = 1.0f;
 				}
 				else
@@ -1128,16 +1128,16 @@ namespace AutomataMusic.UI
 					// Peak reached -> rock burns away (ablates to 0) & flame fades into the atmosphere
 					float fadeT = (burnProgress - peakBurn) / (1f - peakBurn); // 0 -> 1
 					float fadeOut = (float)Math.Cos(fadeT * Math.PI * 0.5); // 1.0 -> 0.0 smoothly
-					intensity = (float)Math.Pow(fadeOut, 1.4); // Smooth decay reaching 0.0 at t=1.0
+					intensity = (float)Math.Pow(fadeOut, 1.35); // Smooth decay reaching 0.0 at t=1.0
 
 					// Solid rock is vaporized into gas: scale and opacity shrink to 0
-					rockScale = Math.Max(0f, 0.85f * (1f - (float)Math.Pow(fadeT, 0.85)));
+					rockScale = Math.Max(0f, 0.88f * (1f - (float)Math.Pow(fadeT, 0.85)));
 					rockAlpha = (float)Math.Pow(Math.Max(0f, 1f - fadeT), 1.25);
 				}
 
 				// Intense candle/flame flicker on the light when reaching maximum burning intensity
 				float distFromPeak = Math.Abs(burnProgress - peakBurn);
-				float peakZone = MathHelper.Clamp(1f - distFromPeak / 0.22f, 0f, 1f);
+				float peakZone = MathHelper.Clamp(1f - distFromPeak / 0.24f, 0f, 1f);
 				float candleFlicker = 1f;
 				if (peakZone > 0f)
 				{
@@ -1148,15 +1148,15 @@ namespace AutomataMusic.UI
 				candleFlicker = Math.Max(0.25f, candleFlicker);
 
 				// Ionization plasma trail
-				float trailLen = 160f * intensity;
+				float trailLen = 175f * intensity;
 				if (intensity > 0.005f)
 				{
 					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, intensity * candleFlicker, trailLen);
 
 					// Candle-flickering light glow around the fireball at peak intensity
 					float glowPulse = 0.85f + 0.25f * candleFlicker;
-					DrawGlow(sb, shootPos, 22f * intensity * glowPulse, 22f * intensity * glowPulse, new Color(255, 205, 115, 0) * (intensity * 0.85f * candleFlicker));
-					DrawGlow(sb, shootPos, 42f * intensity * glowPulse, 42f * intensity * glowPulse, new Color(175, 225, 255, 0) * (intensity * 0.45f * candleFlicker));
+					DrawGlow(sb, shootPos, 24f * intensity * glowPulse, 24f * intensity * glowPulse, new Color(255, 205, 115, 0) * (intensity * 0.85f * candleFlicker));
+					DrawGlow(sb, shootPos, 44f * intensity * glowPulse, 44f * intensity * glowPulse, new Color(175, 225, 255, 0) * (intensity * 0.45f * candleFlicker));
 				}
 
 				// The rock itself: burns, glows red-hot, shrinks as it vaporizes, and dissolves into the atmosphere
@@ -1172,19 +1172,20 @@ namespace AutomataMusic.UI
 			{
 				// Infrequent: spawns only once every 24 to 48 seconds
 				shootTimer = 24f + (float)fxRand.NextDouble() * 24f;
-				shootMax = shootLife = 3.8f + (float)fxRand.NextDouble() * 0.4f;
+				// Long lifetime (7.0s to 7.6s) allowing ~3.2s of cold approach and ~4.0s of sustained burning!
+				shootMax = shootLife = 7.0f + (float)fxRand.NextDouble() * 0.6f;
 
 				// Spawn high in starry space above Earth
 				bool rightToLeft = fxRand.NextDouble() < 0.55;
-				float startX = rightToLeft ? (w * (0.74f + (float)fxRand.NextDouble() * 0.12f)) : (w * (0.14f + (float)fxRand.NextDouble() * 0.12f));
+				float startX = rightToLeft ? (w * (0.80f + (float)fxRand.NextDouble() * 0.08f)) : (w * (0.13f + (float)fxRand.NextDouble() * 0.08f));
 				// High entry corridor in deep space:
-				float startY = h * (0.12f + (float)fxRand.NextDouble() * 0.08f);
+				float startY = h * (0.15f + (float)fxRand.NextDouble() * 0.05f);
 				shootPos = new Vector2(startX, startY);
 
-				// Straight diagonal trajectory angled directly toward Earth (24° to 30° downward angle)
-				float downAngleDeg = 24f + (float)fxRand.NextDouble() * 6f;
+				// Straight diagonal trajectory angled directly toward Earth (19° to 24° downward angle)
+				float downAngleDeg = 19f + (float)fxRand.NextDouble() * 5f;
 				float ang = MathHelper.ToRadians(rightToLeft ? (180f - downAngleDeg) : downAngleDeg);
-				float speed = w * (0.12f + (float)fxRand.NextDouble() * 0.02f);
+				float speed = w * (0.092f + (float)fxRand.NextDouble() * 0.010f);
 				shootVel = new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * speed;
 			}
 		}

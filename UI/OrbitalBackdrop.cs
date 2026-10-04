@@ -4,7 +4,9 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using ReLogic.Content;
 using Terraria;
+using Terraria.ModLoader;
 
 namespace AutomataMusic.UI
 {
@@ -43,6 +45,7 @@ namespace AutomataMusic.UI
 		private static Color[] nebulaData, moonData;
 
 		private static Texture2D glowTex, gradientTex, nebulaTex, moonTex, planetTex;
+		private static Asset<Texture2D> bunkerTexture;
 
 		// ───────────────────────── Planet geometry cache ─────────────────────────
 		private static int cachedW = -1, cachedH = -1;
@@ -132,12 +135,16 @@ namespace AutomataMusic.UI
 
 			// 6. Sunrise on the limb + lens flare
 			DrawSun(sb, w, h);
+
+			// 7. YoRHa Orbital Satellite Base // "The Bunker"
+			DrawBunker(sb, w, h);
 		}
 
 		public static void Unload()
 		{
 			Texture2D[] all = { glowTex, gradientTex, nebulaTex, moonTex, planetTex };
 			glowTex = gradientTex = nebulaTex = moonTex = planetTex = null;
+			bunkerTexture = null;
 			texturesBuilt = false;
 			cachedW = cachedH = -1;
 			Main.QueueMainThreadAction(() =>
@@ -725,11 +732,94 @@ namespace AutomataMusic.UI
 			if (moonTex == null)
 				return;
 
-			float size = h * 0.085f;
-			Vector2 c = new Vector2(w * 0.835f, h * 0.25f);
+			float size = h * 0.080f;
+			Vector2 c = new Vector2(w * 0.865f, h * 0.16f);
 			float fade = Math.Min(1f, planetFade * 1.5f);
 			DrawGlow(sb, c, size * 1.3f, size * 1.3f, new Color(170, 185, 210, 0) * (0.12f * fade));
 			sb.Draw(moonTex, new Rectangle((int)(c.X - size / 2f), (int)(c.Y - size / 2f), (int)size, (int)size), Color.White * fade);
+		}
+
+		private static void EnsureBunkerTexture()
+		{
+			if (bunkerTexture == null)
+			{
+				try
+				{
+					bunkerTexture = ModContent.Request<Texture2D>("AutomataMusic/Assets/Textures/Bunker", AssetRequestMode.ImmediateLoad);
+				}
+				catch
+				{
+				}
+			}
+		}
+
+		private static void DrawBunker(SpriteBatch sb, int w, int h)
+		{
+			EnsureBunkerTexture();
+			if (bunkerTexture == null || !bunkerTexture.IsLoaded || bunkerTexture.Value == null)
+				return;
+
+			Texture2D bunker = bunkerTexture.Value;
+			if (bunker.IsDisposed)
+				return;
+
+			// Microgravity orbital hover & sway
+			float bobY = (float)Math.Sin(totalTime * 0.45f) * (h * 0.008f);
+			float swayX = (float)Math.Cos(totalTime * 0.32f) * (w * 0.005f);
+			Vector2 center = new Vector2(w * 0.77f + swayX, h * 0.38f + bobY);
+
+			// Majestic axial rotation in orbit
+			float rotation = totalTime * 0.038f;
+
+			// Subtle 3D perspective breathing
+			float scaleWobble = 1f + 0.015f * (float)Math.Sin(totalTime * 0.5f);
+			float baseSize = h * 0.33f;
+			float drawSize = baseSize * scaleWobble;
+			float scale = drawSize / (float)bunker.Width;
+
+			Vector2 origin = new Vector2(bunker.Width * 0.5f, bunker.Height * 0.5f);
+
+			// 1. Soft Earth-shine / atmospheric back-glow
+			float glowSize = drawSize * 0.95f;
+			DrawGlow(sb, center, glowSize, glowSize, new Color(90, 150, 220, 0) * (0.16f * planetFade));
+
+			// 2. Main YoRHa Bunker Station Body
+			Color bunkerColor = new Color(245, 248, 255) * planetFade;
+			sb.Draw(bunker, center, null, bunkerColor, rotation, origin, scale, SpriteEffects.None, 0f);
+
+			// 3. Active Station Navigation Beacons (pulsing lights that rotate with the station)
+			// Navigation beacon on command tower spire (center of station):
+			float greenStrobe = (float)Math.Pow(Math.Max(0f, Math.Sin(totalTime * 3.8f)), 14);
+			if (greenStrobe > 0.05f)
+			{
+				DrawGlow(sb, center, 14f, 14f, new Color(140, 255, 180, 0) * (greenStrobe * 0.9f * planetFade));
+				DrawGlow(sb, center, 4f, 4f, new Color(255, 255, 255, 0) * (greenStrobe * planetFade));
+			}
+
+			// Red & Amber docking beacons on outer ring perimeter (rotating with the station)
+			float redStrobe = (float)Math.Pow(Math.Max(0f, Math.Cos(totalTime * 3.2f)), 12);
+			if (redStrobe > 0.05f)
+			{
+				float ringRadius = drawSize * 0.44f;
+				for (int i = 0; i < 4; i++)
+				{
+					float angle = rotation + i * MathHelper.PiOver2 + MathHelper.PiOver4;
+					Vector2 beaconPos = center + new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * ringRadius;
+					Color beaconCol = (i % 2 == 0) ? new Color(255, 100, 90, 0) : new Color(255, 190, 90, 0);
+					DrawGlow(sb, beaconPos, 10f, 10f, beaconCol * (redStrobe * 0.85f * planetFade));
+				}
+			}
+
+			// Cyan RCS attitude thruster stabilization puff every ~12 seconds
+			float rcsCycle = (totalTime * 0.08f) % 1f; // cycles every 12.5s
+			if (rcsCycle < 0.045f) // fires for ~0.56s
+			{
+				float rcsLife = rcsCycle / 0.045f;
+				float rcsFade = (float)Math.Sin(rcsLife * Math.PI);
+				float thrusterAngle = rotation + MathHelper.PiOver2 * 1.5f;
+				Vector2 thrusterPos = center + new Vector2((float)Math.Cos(thrusterAngle), (float)Math.Sin(thrusterAngle)) * (drawSize * 0.46f);
+				DrawGlow(sb, thrusterPos, 18f * rcsFade, 10f * rcsFade, new Color(100, 220, 255, 0) * (rcsFade * 0.75f * planetFade), thrusterAngle + MathHelper.PiOver2);
+			}
 		}
 
 		private static void DrawSun(SpriteBatch sb, int w, int h)

@@ -103,8 +103,11 @@ namespace AutomataMusic.UI
 		private static float warSpawnTimer = 1.6f;
 		private static Vector2 lastWarPos;
 
-		private static float shootTimer = 5f, shootLife, shootMax;
+		private static float shootTimer = 4f, shootLife, shootMax;
 		private static Vector2 shootPos, shootVel;
+		private static int shootVariant;
+		private static bool explodeTriggered;
+		private static Vector2 explodePos;
 
 		// ═════════════════════════════════════════════════════════════
 		//  Public API
@@ -979,6 +982,22 @@ namespace AutomataMusic.UI
 			}
 		}
 
+		private static void DrawAsteroidRock(SpriteBatch sb, Texture2D pixel, Vector2 pos, float rot, float alpha)
+		{
+			if (alpha <= 0f) return;
+			// 3x3 textured stony asteroid silhouette with sunlit edge
+			Color rockDark = new Color(55, 58, 65) * alpha;
+			Color rockLit = new Color(175, 180, 195) * alpha;
+			Color rockBody = new Color(105, 110, 120) * alpha;
+
+			int ix = (int)pos.X;
+			int iy = (int)pos.Y;
+			sb.Draw(pixel, new Rectangle(ix - 1, iy - 1, 3, 3), rockBody);
+			sb.Draw(pixel, new Rectangle(ix - 1, iy, 2, 2), rockLit); // Sunward highlight
+			sb.Draw(pixel, new Rectangle(ix + 1, iy - 1, 1, 1), rockDark); // Shadow
+			sb.Draw(pixel, new Rectangle(ix, iy - 1, 2, 1), rockLit);
+		}
+
 		private static void DrawShootingStar(SpriteBatch sb, Texture2D pixel, int w, int h, float dt)
 		{
 			if (shootLife > 0f)
@@ -987,78 +1006,92 @@ namespace AutomataMusic.UI
 				shootPos += shootVel * dt;
 				float t = 1f - shootLife / shootMax; // [0..1] progress
 
-				// Burning curve: heats up gradually upon entering upper atmosphere, reaches peak ablation, then burns up
-				float fade = (float)Math.Sin(Math.Pow(t, 0.75) * Math.PI);
 				Vector2 dirN = Vector2.Normalize(shootVel);
 				float angle = (float)Math.Atan2(dirN.Y, dirN.X);
-
 				Rectangle src = new Rectangle(0, 0, 1, 1);
-				const int Segs = 26;
-				float segLen = 14f;
 
-				// 1. Fiery incandescent plasma tail
+				// Phase 1: Cold unburnt tumbling space rock (no burning at all!)
+				const float igniteThreshold = 0.28f;
+				if (t < igniteThreshold)
+				{
+					float entryFade = MathHelper.Clamp(t / 0.08f, 0f, 1f);
+					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 3f, entryFade);
+					return;
+				}
+
+				// Phase 2: Variant 1 (Explosive airburst flash for a second, then fades away)
+				if (shootVariant == 1)
+				{
+					const float explodeT = 0.52f;
+					if (t >= explodeT)
+					{
+						if (!explodeTriggered)
+						{
+							explodeTriggered = true;
+							explodePos = shootPos;
+						}
+
+						// Airburst flash: expands rapidly, flashes brilliant white-cyan for ~1s, then fades away
+						float expT = (t - explodeT) / (1f - explodeT); // [0..1] over ~1 second
+						float flashIntensity = expT < 0.12f
+							? (expT / 0.12f)
+							: (float)Math.Pow(1f - expT, 1.6);
+
+						float expSize = h * (0.016f + 0.040f * expT);
+
+						// Brilliant explosive detonation core
+						DrawGlow(sb, explodePos, expSize * 1.6f, expSize * 1.6f, new Color(255, 255, 255, 0) * (flashIntensity * 0.95f));
+						// Ionization shockwave halo
+						DrawGlow(sb, explodePos, expSize * 2.8f, expSize * 2.8f, new Color(190, 225, 255, 0) * (flashIntensity * 0.65f));
+						// Thermal dissipation
+						DrawGlow(sb, explodePos, expSize * 0.7f, expSize * 0.7f, new Color(255, 210, 160, 0) * (flashIntensity * 0.40f));
+						return;
+					}
+				}
+
+				// Phase 3: Atmospheric entry & sleek burning streak (original crisp visual style user loved)
+				float burnProgress = (t - igniteThreshold) / (1f - igniteThreshold);
+				float fade = (float)Math.Sin(burnProgress * Math.PI);
+
+				// Sleek, clean 16-segment streak
+				const int Segs = 16;
+				float segLen = 13f;
 				for (int k = 0; k < Segs; k++)
 				{
 					Vector2 p = shootPos - dirN * (k * segLen);
-					float segFrac = 1f - k / (float)Segs;
-					float segAlpha = fade * (float)Math.Pow(segFrac, 1.4);
-
-					// Color transition: white-hot at head -> bright amber/orange -> dark smoke crimson at tail
-					Color trailCol = (k < 4)
-						? Color.Lerp(new Color(255, 250, 220, 0), new Color(255, 170, 40, 0), k / 4f)
-						: Color.Lerp(new Color(255, 150, 30, 0), new Color(220, 45, 15, 0), (k - 4) / (float)(Segs - 4));
-
-					float thick = (k < 4) ? 3.5f : ((k < 12) ? 2.5f : 1.5f);
-					sb.Draw(pixel, p, src, trailCol * (segAlpha * 0.90f), angle, Vector2.Zero, new Vector2(segLen, thick), SpriteEffects.None, 0f);
+					float a = fade * (1f - k / (float)Segs);
+					Color c = (k < 3) ? new Color(245, 250, 255, 0) : new Color(205, 228, 255, 0);
+					sb.Draw(pixel, p, src, c * (a * 0.85f), angle, Vector2.Zero, new Vector2(segLen, k < 3 ? 2f : 1f), SpriteEffects.None, 0f);
 				}
 
-				// 2. Soft atmospheric plasma wake / glowing slipstream
-				float headSize = h * 0.024f * (0.8f + 0.4f * fade);
-				DrawGlow(sb, shootPos - dirN * (headSize * 1.2f), headSize * 2.2f, headSize * 0.8f, new Color(255, 120, 20, 0) * (fade * 0.55f), angle);
-				DrawGlow(sb, shootPos - dirN * (headSize * 2.8f), headSize * 3.5f, headSize * 0.9f, new Color(220, 60, 15, 0) * (fade * 0.35f), angle);
+				// Crisp point-light head glow
+				DrawGlow(sb, shootPos, 7f, 7f, new Color(220, 235, 255, 0) * (fade * 0.70f));
 
-				// 3. Blazing meteor fireball head
-				DrawGlow(sb, shootPos, headSize * 1.5f, headSize * 1.2f, new Color(255, 180, 50, 0) * (fade * 0.80f), angle);
-				DrawGlow(sb, shootPos, headSize * 0.7f, headSize * 0.55f, new Color(255, 245, 210, 0) * (fade * 0.95f), angle);
-				DrawGlow(sb, shootPos, headSize * 0.3f, headSize * 0.3f, new Color(255, 255, 255, 0) * fade);
-
-				// 4. Burning ablation embers shedding behind the head
-				for (int s = 0; s < 4; s++)
-				{
-					float sDist = (s + 1) * 20f + (float)Math.Sin(totalTime * 28.0 + s * 1.7) * 5f;
-					Vector2 sPos = shootPos - dirN * sDist + new Vector2(-dirN.Y, dirN.X) * ((float)Math.Sin(totalTime * 18.0 + s * 2.3) * 3.5f);
-					float sFade = fade * (1f - s * 0.22f);
-					sb.Draw(pixel, new Rectangle((int)sPos.X, (int)sPos.Y, 2, 2), new Color(255, 180, 50, 0) * sFade);
-				}
-
-				// 5. Terminal ablation flare as it burns up in denser atmosphere (near t = 0.82)
-				if (t > 0.72f && t < 0.92f)
-				{
-					float flareProgress = (t - 0.72f) / 0.20f;
-					float flarePulse = (float)Math.Sin(flareProgress * Math.PI);
-					DrawGlow(sb, shootPos, headSize * 3.2f, headSize * 3.2f, new Color(255, 220, 140, 0) * (flarePulse * 0.75f));
-				}
+				// The rock burning inside the leading tip
+				DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4f, fade * 0.85f);
 				return;
 			}
 
 			shootTimer -= dt;
 			if (shootTimer <= 0f)
 			{
-				shootTimer = 9f + (float)fxRand.NextDouble() * 12f;
-				// Burn duration: 2.4s to 3.4s (realistic bolide atmospheric burn)
-				shootMax = shootLife = 2.4f + (float)fxRand.NextDouble() * 1.0f;
+				shootTimer = 6f + (float)fxRand.NextDouble() * 8f;
+				shootMax = shootLife = 2.4f + (float)fxRand.NextDouble() * 0.8f;
+				shootVariant = fxRand.Next(2); // 0 = Standard atmospheric burn, 1 = Exploding airburst flash
+				explodeTriggered = false;
+				explodePos = Vector2.Zero;
 
 				// Spawn close to Earth's horizon / upper atmospheric boundary
-				float startX = w * (0.35f + (float)fxRand.NextDouble() * 0.45f);
+				float startX = w * (0.30f + (float)fxRand.NextDouble() * 0.50f);
 				float horizY = HorizonY(startX);
 				// Plunge from upper atmosphere boundary down toward the clouds/horizon
 				float startY = horizY - h * (0.05f + (float)fxRand.NextDouble() * 0.08f);
 				shootPos = new Vector2(startX, startY);
 
-				// Direction: trajectory plunging downwards towards Earth's surface
+				// Direction: steep/shallow trajectory falling downwards towards Earth
 				bool rightToLeft = fxRand.NextDouble() < 0.65;
-				float ang = MathHelper.ToRadians(rightToLeft ? (140f + (float)fxRand.NextDouble() * 25f) : (25f + (float)fxRand.NextDouble() * 25f));
-				float speed = w * (0.13f + (float)fxRand.NextDouble() * 0.06f);
+				float ang = MathHelper.ToRadians(rightToLeft ? (140f + (float)fxRand.NextDouble() * 22f) : (25f + (float)fxRand.NextDouble() * 22f));
+				float speed = w * (0.13f + (float)fxRand.NextDouble() * 0.05f);
 				shootVel = new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * speed;
 			}
 		}

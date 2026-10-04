@@ -1088,28 +1088,7 @@ namespace AutomataMusic.UI
 
 				const float igniteThreshold = 0.40f; // Flies cold longer; ignites later when penetrating upper mesosphere
 
-				// When it starts burning, Earth's gravity curves its trajectory down into the upper atmosphere
-				if (t >= igniteThreshold)
-				{
-					float curveProgress = (t - igniteThreshold) / (1f - igniteThreshold);
-					Vector2 toEarth = new Vector2(gCx, gCy) - shootPos;
-					Vector2 gravDir = Vector2.Normalize(toEarth);
-					float curveStrength = h * 0.015f * (0.6f + 0.4f * curveProgress);
-					shootVel += gravDir * (curveStrength * dt);
-				}
-
-				// Aerodynamic safety cushion: gently level off if approaching the dense lower atmosphere
-				// This guarantees it NEVER crashes into Earth, while maintaining continuous smooth motion (no abrupt cutoffs!)
-				if (cachedW > 0)
-				{
-					float horizY = HorizonY(shootPos.X);
-					float altitude = horizY - shootPos.Y;
-					if (altitude < h * 0.030f && shootVel.Y > 0f)
-					{
-						shootVel.Y *= 0.88f; // Aerodynamic lift levels off the trajectory in the upper limb
-					}
-				}
-
+				// Straight flight path across the sky toward Earth (no curving or trajectory flicking)
 				shootPos += shootVel * dt;
 
 				Vector2 dirN = shootVel.LengthSquared() > 0.001f ? Vector2.Normalize(shootVel) : new Vector2(-1f, 0f);
@@ -1126,8 +1105,8 @@ namespace AutomataMusic.UI
 				}
 
 				// ═════════════════════════════════════════════════════════════════
-				// Phase 2 & 3: Starts on fire, intensity swells, curves into Earth,
-				// and smoothly burns away / fades away into the atmosphere!
+				// Phase 2 & 3: Starts on fire, intensity swells, burns away,
+				// and smoothly fades away into the atmosphere!
 				// ═════════════════════════════════════════════════════════════════
 				float burnProgress = (t - igniteThreshold) / (1f - igniteThreshold); // [0..1]
 				const float peakBurn = 0.48f; // Peak intensity point
@@ -1156,29 +1135,32 @@ namespace AutomataMusic.UI
 					rockAlpha = (float)Math.Pow(Math.Max(0f, 1f - fadeT), 1.25);
 				}
 
-				// Turbulent plasma flicker at peak burning intensity
+				// Gentle candle flicker on the light when reaching maximum burning intensity
 				float distFromPeak = Math.Abs(burnProgress - peakBurn);
-				float peakZone = MathHelper.Clamp(1f - distFromPeak / 0.18f, 0f, 1f);
-				float peakFactor = (float)Math.Pow(peakZone, 1.5); // Smooth bell-shaped envelope around peak
-				float flicker = 1f + peakFactor * (0.16f * (float)Math.Sin(totalTime * 46f) + 0.10f * (float)Math.Sin(totalTime * 79f + 1.2f));
-				float flameIntensity = MathHelper.Clamp(intensity * flicker, 0f, 1.35f);
-
-				// Ionization plasma trail with subtle aerodynamic wake turbulence
-				float trailLen = 160f * flameIntensity;
-				if (flameIntensity > 0.005f)
+				float peakZone = MathHelper.Clamp(1f - distFromPeak / 0.16f, 0f, 1f);
+				float candleFlicker = 1f;
+				if (peakZone > 0f)
 				{
-					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, flameIntensity, trailLen);
+					// Organic candle flame luminance waver
+					float wave = (float)(Math.Sin(totalTime * 16f) * 0.5 + Math.Sin(totalTime * 27f + 1.2) * 0.35 + Math.Sin(totalTime * 41f + 2.7) * 0.15);
+					candleFlicker = 1f + peakZone * 0.18f * wave; // gentle +/- 18% light flicker
+				}
 
-					// Incandescent fireball head glow flickering with turbulent thermal heat
-					DrawGlow(sb, shootPos, 22f * flameIntensity, 22f * flameIntensity, new Color(255, 205, 115, 0) * (flameIntensity * 0.85f));
-					DrawGlow(sb, shootPos, 40f * flameIntensity, 40f * flameIntensity, new Color(175, 225, 255, 0) * (flameIntensity * 0.45f));
+				// Ionization plasma trail
+				float trailLen = 160f * intensity;
+				if (intensity > 0.005f)
+				{
+					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, intensity * candleFlicker, trailLen);
+
+					// Candle-flickering light glow around the fireball at peak intensity
+					DrawGlow(sb, shootPos, 22f * intensity, 22f * intensity, new Color(255, 205, 115, 0) * (intensity * 0.85f * candleFlicker));
+					DrawGlow(sb, shootPos, 40f * intensity, 40f * intensity, new Color(175, 225, 255, 0) * (intensity * 0.45f * candleFlicker));
 				}
 
 				// The rock itself: burns, glows red-hot, shrinks as it vaporizes, and dissolves into the atmosphere
 				if (rockAlpha > 0.01f && rockScale > 0.04f)
 				{
-					float rockHeat = MathHelper.Clamp(intensity * (1f + peakFactor * 0.20f * (float)Math.Sin(totalTime * 42f)), 0f, 1.2f);
-					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.0f, rockAlpha, rockHeat, rockScale);
+					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.0f, rockAlpha, intensity * candleFlicker, rockScale);
 				}
 				return;
 			}
@@ -1197,10 +1179,10 @@ namespace AutomataMusic.UI
 				float startY = h * (0.12f + (float)fxRand.NextDouble() * 0.08f);
 				shootPos = new Vector2(startX, startY);
 
-				// Steep atmospheric entry trajectory angled directly toward Earth (26° to 36° downward angle)
-				float downAngleDeg = 26f + (float)fxRand.NextDouble() * 10f;
+				// Straight diagonal trajectory angled directly toward Earth (24° to 30° downward angle)
+				float downAngleDeg = 24f + (float)fxRand.NextDouble() * 6f;
 				float ang = MathHelper.ToRadians(rightToLeft ? (180f - downAngleDeg) : downAngleDeg);
-				float speed = w * (0.13f + (float)fxRand.NextDouble() * 0.03f);
+				float speed = w * (0.12f + (float)fxRand.NextDouble() * 0.02f);
 				shootVel = new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * speed;
 			}
 		}

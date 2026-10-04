@@ -1156,21 +1156,29 @@ namespace AutomataMusic.UI
 					rockAlpha = (float)Math.Pow(Math.Max(0f, 1f - fadeT), 1.25);
 				}
 
-				// Ionization plasma trail
-				float trailLen = 160f * intensity;
-				if (intensity > 0.005f)
-				{
-					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, intensity, trailLen);
+				// Turbulent plasma flicker at peak burning intensity
+				float distFromPeak = Math.Abs(burnProgress - peakBurn);
+				float peakZone = MathHelper.Clamp(1f - distFromPeak / 0.18f, 0f, 1f);
+				float peakFactor = (float)Math.Pow(peakZone, 1.5); // Smooth bell-shaped envelope around peak
+				float flicker = 1f + peakFactor * (0.16f * (float)Math.Sin(totalTime * 46f) + 0.10f * (float)Math.Sin(totalTime * 79f + 1.2f));
+				float flameIntensity = MathHelper.Clamp(intensity * flicker, 0f, 1.35f);
 
-					// Incandescent fireball head glow
-					DrawGlow(sb, shootPos, 22f * intensity, 22f * intensity, new Color(255, 205, 115, 0) * (intensity * 0.85f));
-					DrawGlow(sb, shootPos, 40f * intensity, 40f * intensity, new Color(175, 225, 255, 0) * (intensity * 0.45f));
+				// Ionization plasma trail with subtle aerodynamic wake turbulence
+				float trailLen = 160f * flameIntensity;
+				if (flameIntensity > 0.005f)
+				{
+					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, flameIntensity, trailLen);
+
+					// Incandescent fireball head glow flickering with turbulent thermal heat
+					DrawGlow(sb, shootPos, 22f * flameIntensity, 22f * flameIntensity, new Color(255, 205, 115, 0) * (flameIntensity * 0.85f));
+					DrawGlow(sb, shootPos, 40f * flameIntensity, 40f * flameIntensity, new Color(175, 225, 255, 0) * (flameIntensity * 0.45f));
 				}
 
 				// The rock itself: burns, glows red-hot, shrinks as it vaporizes, and dissolves into the atmosphere
 				if (rockAlpha > 0.01f && rockScale > 0.04f)
 				{
-					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.0f, rockAlpha, intensity, rockScale);
+					float rockHeat = MathHelper.Clamp(intensity * (1f + peakFactor * 0.20f * (float)Math.Sin(totalTime * 42f)), 0f, 1.2f);
+					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.0f, rockAlpha, rockHeat, rockScale);
 				}
 				return;
 			}

@@ -982,20 +982,114 @@ namespace AutomataMusic.UI
 			}
 		}
 
-		private static void DrawAsteroidRock(SpriteBatch sb, Texture2D pixel, Vector2 pos, float rot, float alpha)
+		private struct ExpFragment
+		{
+			public Vector2 Vel;
+			public float Size;
+		}
+		private static readonly ExpFragment[] expFrags = new ExpFragment[6]
+		{
+			new ExpFragment { Vel = new Vector2(-1.2f, -0.6f), Size = 2f },
+			new ExpFragment { Vel = new Vector2( 1.1f, -0.8f), Size = 2f },
+			new ExpFragment { Vel = new Vector2(-0.7f,  1.1f), Size = 3f },
+			new ExpFragment { Vel = new Vector2( 1.3f,  0.7f), Size = 2f },
+			new ExpFragment { Vel = new Vector2(-1.5f,  0.2f), Size = 2f },
+			new ExpFragment { Vel = new Vector2( 0.4f, -1.3f), Size = 3f },
+		};
+
+		private static void DrawAsteroidRock(SpriteBatch sb, Texture2D pixel, Vector2 pos, float rot, float alpha, float heat = 0f)
 		{
 			if (alpha <= 0f) return;
-			// 3x3 textured stony asteroid silhouette with sunlit edge
-			Color rockDark = new Color(55, 58, 65) * alpha;
-			Color rockLit = new Color(175, 180, 195) * alpha;
-			Color rockBody = new Color(105, 110, 120) * alpha;
 
-			int ix = (int)pos.X;
-			int iy = (int)pos.Y;
-			sb.Draw(pixel, new Rectangle(ix - 1, iy - 1, 3, 3), rockBody);
-			sb.Draw(pixel, new Rectangle(ix - 1, iy, 2, 2), rockLit); // Sunward highlight
-			sb.Draw(pixel, new Rectangle(ix + 1, iy - 1, 1, 1), rockDark); // Shadow
-			sb.Draw(pixel, new Rectangle(ix, iy - 1, 2, 1), rockLit);
+			Color darkBasalt = new Color(38, 42, 52) * alpha;
+			Color midSlate = new Color(85, 92, 108) * alpha;
+			Color litStone = new Color(175, 185, 205) * alpha;
+			Color highlight = new Color(230, 238, 255) * alpha;
+			Color heatGlow = new Color(255, 155, 50) * (alpha * heat);
+
+			float cos = (float)Math.Cos(rot);
+			float sin = (float)Math.Sin(rot);
+
+			// 24 faceted pixels forming an irregular 3D stony space boulder
+			(int ox, int oy, int colType)[] rockPixels =
+			{
+				(-2, -3, 2), (-1, -3, 3), (0, -3, 2), (1, -3, 1),
+				(-3, -2, 2), (-2, -2, 3), (-1, -2, 2), (0, -2, 1), (1, -2, 0), (2, -2, 0),
+				(-4, -1, 3), (-3, -1, 2), (-2, -1, 2), (-1, -1, 1), (0, -1, 1), (1, -1, 0), (2, -1, 0),
+				(-4,  0, 2), (-3,  0, 2), (-2,  0, 1), (-1,  0, 1), (0,  0, 1), (1,  0, 0), (2,  0, 0),
+				(-3,  1, 2), (-2,  1, 1), (-1,  1, 1), (0,  1, 0), (1,  1, 0),
+				(-2,  2, 1), (-1,  2, 1), (0,  2, 0), (1,  2, 0),
+				(-1,  3, 0), (0,  3, 0)
+			};
+
+			Rectangle src = new Rectangle(0, 0, 1, 1);
+			for (int i = 0; i < rockPixels.Length; i++)
+			{
+				var p = rockPixels[i];
+				float rx = pos.X + (p.ox * cos - p.oy * sin) * 1.5f;
+				float ry = pos.Y + (p.ox * sin + p.oy * cos) * 1.5f;
+
+				Color c = p.colType switch
+				{
+					3 => highlight,
+					2 => litStone,
+					1 => (heat > 0.35f && (i % 3 == 0)) ? heatGlow : midSlate,
+					_ => darkBasalt
+				};
+
+				sb.Draw(pixel, new Rectangle((int)rx, (int)ry, 2, 2), src, c);
+			}
+
+			if (heat > 0.15f)
+			{
+				DrawGlow(sb, pos, 16f * heat, 16f * heat, new Color(255, 175, 70, 0) * (alpha * heat * 0.65f));
+			}
+		}
+
+		private static void DrawAtmosphericTrail(SpriteBatch sb, Texture2D pixel, Vector2 headPos, Vector2 dirN, float angle, float fade, float lengthPx)
+		{
+			if (fade <= 0f || lengthPx <= 2f) return;
+
+			Rectangle src = new Rectangle(0, 0, 1, 1);
+
+			// 1. Soft atmospheric plasma glow sheath (volumetric, smooth, no harsh 1px line)
+			int glowSteps = 10;
+			for (int g = 0; g < glowSteps; g++)
+			{
+				float dist = (g / (float)glowSteps) * lengthPx;
+				Vector2 gp = headPos - dirN * dist;
+				float frac = 1f - (g / (float)glowSteps); // 1.0 at head, 0.0 at tail
+
+				float rx = 18f * (float)Math.Pow(frac, 0.7); // Tapers smoothly backwards
+				float ry = 9f * (float)Math.Pow(frac, 0.8);
+				float alpha = fade * (float)Math.Pow(frac, 1.2) * 0.45f;
+
+				// Cyan-white celestial atmospheric airglow
+				DrawGlow(sb, gp, rx, ry, new Color(160, 215, 255, 0) * alpha, angle);
+			}
+
+			// 2. High-intensity inner incandescent beam with smooth width tapering
+			int beamSteps = 24;
+			float stepLen = lengthPx / beamSteps;
+			for (int k = 0; k < beamSteps; k++)
+			{
+				Vector2 p = headPos - dirN * (k * stepLen);
+				float frac = 1f - (k / (float)beamSteps);
+				float alpha = fade * (float)Math.Pow(frac, 1.4) * 0.90f;
+
+				// Thickness tapers from 4.5px at the head down to 1px at the tail
+				float thick = Math.Max(1f, 4.5f * frac);
+
+				Color beamCol = (k < 5)
+					? Color.Lerp(new Color(255, 255, 255, 0), new Color(220, 240, 255, 0), k / 5f)
+					: Color.Lerp(new Color(210, 235, 255, 0), new Color(140, 195, 255, 0), (k - 5) / (float)(beamSteps - 5));
+
+				sb.Draw(pixel, p, src, beamCol * alpha, angle, Vector2.Zero, new Vector2(stepLen + 1f, thick), SpriteEffects.None, 0f);
+			}
+
+			// 3. Blinding white ionization plasma coma at the head
+			DrawGlow(sb, headPos, 24f, 16f, new Color(190, 230, 255, 0) * (fade * 0.75f), angle);
+			DrawGlow(sb, headPos, 11f, 11f, new Color(255, 255, 255, 0) * (fade * 0.95f), angle);
 		}
 
 		private static void DrawShootingStar(SpriteBatch sb, Texture2D pixel, int w, int h, float dt)
@@ -1008,21 +1102,22 @@ namespace AutomataMusic.UI
 
 				Vector2 dirN = Vector2.Normalize(shootVel);
 				float angle = (float)Math.Atan2(dirN.Y, dirN.X);
-				Rectangle src = new Rectangle(0, 0, 1, 1);
 
-				// Phase 1: Cold unburnt tumbling space rock (no burning at all!)
+				// Phase 1: Cold unburnt tumbling space rock in orbit (no burning at all!)
 				const float igniteThreshold = 0.28f;
 				if (t < igniteThreshold)
 				{
 					float entryFade = MathHelper.Clamp(t / 0.08f, 0f, 1f);
-					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 3f, entryFade);
+					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 2.8f, entryFade, heat: 0f);
 					return;
 				}
+
+				float heat = MathHelper.Clamp((t - igniteThreshold) / 0.18f, 0f, 1f);
 
 				// Phase 2: Variant 1 (Explosive airburst flash for a second, then fades away)
 				if (shootVariant == 1)
 				{
-					const float explodeT = 0.52f;
+					const float explodeT = 0.50f;
 					if (t >= explodeT)
 					{
 						if (!explodeTriggered)
@@ -1033,42 +1128,51 @@ namespace AutomataMusic.UI
 
 						// Airburst flash: expands rapidly, flashes brilliant white-cyan for ~1s, then fades away
 						float expT = (t - explodeT) / (1f - explodeT); // [0..1] over ~1 second
-						float flashIntensity = expT < 0.12f
-							? (expT / 0.12f)
-							: (float)Math.Pow(1f - expT, 1.6);
+						float flashIntensity = expT < 0.10f
+							? (expT / 0.10f)
+							: (float)Math.Pow(1f - expT, 1.8);
 
-						float expSize = h * (0.016f + 0.040f * expT);
+						float bloom = h * (0.022f + 0.060f * expT);
 
 						// Brilliant explosive detonation core
-						DrawGlow(sb, explodePos, expSize * 1.6f, expSize * 1.6f, new Color(255, 255, 255, 0) * (flashIntensity * 0.95f));
+						DrawGlow(sb, explodePos, bloom * 1.5f, bloom * 1.5f, new Color(255, 255, 255, 0) * (flashIntensity * 0.95f));
 						// Ionization shockwave halo
-						DrawGlow(sb, explodePos, expSize * 2.8f, expSize * 2.8f, new Color(190, 225, 255, 0) * (flashIntensity * 0.65f));
-						// Thermal dissipation
-						DrawGlow(sb, explodePos, expSize * 0.7f, expSize * 0.7f, new Color(255, 210, 160, 0) * (flashIntensity * 0.40f));
+						DrawGlow(sb, explodePos, bloom * 2.8f, bloom * 2.8f, new Color(175, 220, 255, 0) * (flashIntensity * 0.65f));
+						// Expanding outer shock ring
+						DrawGlow(sb, explodePos, bloom * 3.6f, bloom * 3.6f, new Color(140, 195, 255, 0) * (flashIntensity * 0.35f));
+
+						// Shattered fiery fragments flying outward
+						for (int f = 0; f < expFrags.Length; f++)
+						{
+							Vector2 fPos = explodePos + expFrags[f].Vel * (expT * 42f);
+							float fFade = (1f - expT) * (float)Math.Sin(expT * Math.PI);
+							if (fFade > 0f)
+							{
+								sb.Draw(pixel, new Rectangle((int)fPos.X, (int)fPos.Y, (int)expFrags[f].Size, (int)expFrags[f].Size), new Color(255, 225, 170, 0) * fFade);
+								DrawGlow(sb, fPos, 7f, 7f, new Color(255, 185, 90, 0) * (fFade * 0.55f));
+							}
+						}
+
+						return;
+					}
+					else
+					{
+						// Heating up before exploding
+						float igniteFade = (t - igniteThreshold) / (explodeT - igniteThreshold);
+						float tailLen = 95f * igniteFade;
+						DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, igniteFade, tailLen);
+						DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.5f, 1f, heat);
 						return;
 					}
 				}
 
-				// Phase 3: Atmospheric entry & sleek burning streak (original crisp visual style user loved)
+				// Phase 3: Atmospheric entry & sleek burning streak (Variant 0)
 				float burnProgress = (t - igniteThreshold) / (1f - igniteThreshold);
 				float fade = (float)Math.Sin(burnProgress * Math.PI);
+				float trailLength = Math.Min(150f, 40f + 110f * (float)Math.Sin(burnProgress * Math.PI * 0.5));
 
-				// Sleek, clean 16-segment streak
-				const int Segs = 16;
-				float segLen = 13f;
-				for (int k = 0; k < Segs; k++)
-				{
-					Vector2 p = shootPos - dirN * (k * segLen);
-					float a = fade * (1f - k / (float)Segs);
-					Color c = (k < 3) ? new Color(245, 250, 255, 0) : new Color(205, 228, 255, 0);
-					sb.Draw(pixel, p, src, c * (a * 0.85f), angle, Vector2.Zero, new Vector2(segLen, k < 3 ? 2f : 1f), SpriteEffects.None, 0f);
-				}
-
-				// Crisp point-light head glow
-				DrawGlow(sb, shootPos, 7f, 7f, new Color(220, 235, 255, 0) * (fade * 0.70f));
-
-				// The rock burning inside the leading tip
-				DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4f, fade * 0.85f);
+				DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, fade, trailLength);
+				DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4f, fade * 0.95f, heat);
 				return;
 			}
 
@@ -1076,7 +1180,7 @@ namespace AutomataMusic.UI
 			if (shootTimer <= 0f)
 			{
 				shootTimer = 6f + (float)fxRand.NextDouble() * 8f;
-				shootMax = shootLife = 2.4f + (float)fxRand.NextDouble() * 0.8f;
+				shootMax = shootLife = 2.6f + (float)fxRand.NextDouble() * 0.8f;
 				shootVariant = fxRand.Next(2); // 0 = Standard atmospheric burn, 1 = Exploding airburst flash
 				explodeTriggered = false;
 				explodePos = Vector2.Zero;

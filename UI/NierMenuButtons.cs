@@ -1,6 +1,10 @@
 using System;
+using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Mono.Cecil;
+using Mono.Cecil.Cil;
+using MonoMod.Cil;
 using ReLogic.Graphics;
 using Terraria;
 using Terraria.GameContent;
@@ -18,7 +22,7 @@ namespace AutomataMusic.UI
 			if (hooksRegistered)
 				return;
 
-			Terraria.On_Utils.DrawBorderStringFourWay += Hook_DrawBorderStringFourWay;
+			Terraria.IL_Main.DrawMenu += Hook_IL_DrawMenu;
 			hooksRegistered = true;
 		}
 
@@ -27,11 +31,56 @@ namespace AutomataMusic.UI
 			if (!hooksRegistered)
 				return;
 
-			Terraria.On_Utils.DrawBorderStringFourWay -= Hook_DrawBorderStringFourWay;
+			Terraria.IL_Main.DrawMenu -= Hook_IL_DrawMenu;
 			hooksRegistered = false;
 		}
 
-		private static bool IsThemeActive()
+		private static void Hook_IL_DrawMenu(ILContext il)
+		{
+			try
+			{
+				var targetMethod = typeof(DynamicSpriteFontExtensionMethods).GetMethod(
+					"DrawString",
+					new Type[] {
+						typeof(SpriteBatch),
+						typeof(DynamicSpriteFont),
+						typeof(string),
+						typeof(Vector2),
+						typeof(Color),
+						typeof(float),
+						typeof(Vector2),
+						typeof(float),
+						typeof(SpriteEffects),
+						typeof(float)
+					});
+
+				var replacementMethod = typeof(NierMenuButtons).GetMethod(
+					nameof(CustomDrawString),
+					BindingFlags.Public | BindingFlags.Static);
+
+				if (targetMethod == null || replacementMethod == null)
+					return;
+
+				var cursor = new ILCursor(il);
+				int redirected = 0;
+
+				while (cursor.TryGotoNext(MoveType.Before, i => i.MatchCall(targetMethod)))
+				{
+					cursor.Next.OpCode = OpCodes.Call;
+					cursor.Next.Operand = il.Import(replacementMethod);
+					redirected++;
+					cursor.Index++;
+				}
+
+				AutomataMusic.Instance?.Logger.Info($"[NierMenuButtons] Successfully redirected {redirected} DrawString calls in DrawMenu!");
+			}
+			catch (Exception ex)
+			{
+				AutomataMusic.Instance?.Logger.Warn("[NierMenuButtons] IL hook error: " + ex);
+			}
+		}
+
+		public static bool IsThemeActive()
 		{
 			if (!Main.gameMenu)
 				return false;
@@ -51,49 +100,55 @@ namespace AutomataMusic.UI
 			return false;
 		}
 
-		private static void Hook_DrawBorderStringFourWay(
-			Terraria.On_Utils.orig_DrawBorderStringFourWay orig,
+		public static void CustomDrawString(
 			SpriteBatch sb,
 			DynamicSpriteFont font,
 			string text,
-			float x,
-			float y,
+			Vector2 position,
 			Color color,
-			Color borderColor,
+			float rotation,
 			Vector2 origin,
-			float scale)
+			float scale,
+			SpriteEffects effects,
+			float layerDepth)
 		{
-			// Only hook big menu buttons when the NieR theme is active on the main menu
+			// If NieR theme is not active, or this is not the main menu button font, render normally
 			if (!IsThemeActive() || string.IsNullOrEmpty(text) || font != FontAssets.DeathText.Value)
 			{
-				orig(sb, font, text, x, y, color, borderColor, origin, scale);
+				DynamicSpriteFontExtensionMethods.DrawString(sb, font, text, position, color, rotation, origin, scale, effects, layerDepth);
+				return;
+			}
+
+			// In vanilla DrawMenu, each button is drawn in a loop 5 times:
+			// 4 times in Color.Black to create a thick cartoon border, then 1 time in the actual color.
+			// In NieR, we suppress the thick cartoon black border passes:
+			if (color.R == 0 && color.G == 0 && color.B == 0)
+			{
 				return;
 			}
 
 			Texture2D pixel = TextureAssets.MagicPixel.Value;
 			if (pixel == null)
 			{
-				orig(sb, font, text, x, y, color, borderColor, origin, scale);
+				DynamicSpriteFontExtensionMethods.DrawString(sb, font, text, position, color, rotation, origin, scale, effects, layerDepth);
 				return;
 			}
 
-			// Clean uppercase typography for NieR:Automata YoRHa UI
+			// Uppercase formatting for authentic NieR YoRHa military UI
 			string upperText = text.ToUpperInvariant();
 			Vector2 textSize = font.MeasureString(upperText) * scale;
 
-			// In vanilla DrawMenu, (x, y) is the top-left of the text
-			Vector2 textPos = new Vector2(x - origin.X * scale, y - origin.Y * scale);
+			// Check if the button is hovered:
+			// In vanilla Terraria, hovered buttons use bright yellow/gold (high R & G, low B)
+			bool isHovered = (color.R > 210 && color.G > 160 && color.B < 120);
 
-			// Detect if this button is hovered / selected (vanilla sets bright yellow/gold with high R & G)
-			bool isHovered = (color.R > 220 && color.G > 160 && color.B < 120);
-
-			// NieR button banner sizing
+			// Calculate button banner dimensions
 			float padX = 28f * scale;
 			float padY = 6f * scale;
 			float bannerW = Math.Max(textSize.X + padX * 2f, 280f * scale);
 			float bannerH = textSize.Y + padY * 2f;
-			float bannerX = textPos.X + (textSize.X - bannerW) / 2f;
-			float bannerY = textPos.Y - padY;
+			float bannerX = position.X - origin.X * scale + (textSize.X - bannerW) / 2f;
+			float bannerY = position.Y - origin.Y * scale - padY;
 
 			Rectangle bannerRect = new Rectangle((int)bannerX, (int)bannerY, (int)bannerW, (int)bannerH);
 
@@ -110,8 +165,8 @@ namespace AutomataMusic.UI
 
 				// 3. Signature NieR square cursor pip on the left of the button (■)
 				int pipSize = Math.Max(7, (int)(8f * scale));
-				int pipX = (int)(textPos.X - 18f * scale);
-				int pipY = (int)(textPos.Y + (textSize.Y - pipSize) / 2f);
+				int pipX = (int)(bannerRect.X + 12f * scale);
+				int pipY = (int)(bannerRect.Y + (bannerRect.Height - pipSize) / 2f);
 				sb.Draw(pixel, new Rectangle(pipX, pipY, pipSize, pipSize), new Color(22, 24, 28));
 
 				// 4. Subtle YoRHa bracket notch indicator on the right edge
@@ -122,7 +177,7 @@ namespace AutomataMusic.UI
 
 				// 5. High-contrast deep charcoal text on the light ivory banner
 				Color textDark = new Color(22, 24, 28);
-				sb.DrawString(font, upperText, textPos, textDark, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, position, textDark, rotation, origin, scale, effects, layerDepth);
 			}
 			else
 			{
@@ -142,11 +197,11 @@ namespace AutomataMusic.UI
 				sb.Draw(pixel, new Rectangle(bannerRect.Right - 2, bannerRect.Bottom - 4, 2, 4), idleBorder * 0.8f);
 
 				// 4. Drop shadow
-				sb.DrawString(font, upperText, textPos + new Vector2(2f, 2f), Color.Black * 0.85f, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, position + new Vector2(1.5f, 1.5f), Color.Black * 0.85f, rotation, origin, scale, effects, layerDepth);
 
 				// 5. Muted YoRHa bone-silver text
 				Color idleText = new Color(218, 210, 192) * 0.90f;
-				sb.DrawString(font, upperText, textPos, idleText, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, position, idleText, rotation, origin, scale, effects, layerDepth);
 			}
 		}
 	}

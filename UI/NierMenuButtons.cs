@@ -120,10 +120,10 @@ namespace AutomataMusic.UI
 			}
 
 			// In vanilla DrawMenu, each button is drawn in a 5-pass loop (k = 0..4).
-			// Passes 0..3 are border outline passes (R, G, B are low: <= 80).
-			// Pass 4 is the front text pass (R >= 120 for idle, R >= 200 for hovered).
+			// Passes 0..3 are border outline passes (R, G, B are low: 0 for idle, ~51 for hovered).
+			// Pass 4 is the front text pass (R >= 75 for idle, R >= 200 for hovered).
 			// Suppress all dark border passes so only the front pass renders cleanly without ghosting.
-			if (color.R < 120 && color.G < 120 && color.B < 120)
+			if (color.R <= 60 && color.G <= 60 && color.B <= 60)
 			{
 				return;
 			}
@@ -143,23 +143,23 @@ namespace AutomataMusic.UI
 
 			// Check if the button is hovered:
 			// In vanilla Terraria, hovered buttons use bright yellow/gold (high R & G, low B)
-			bool isHovered = (color.R > 200 && color.G > 160 && color.B < 130);
+			bool isHovered = (color.R > 180 && color.G > 140 && color.B < 125);
 
 			// Compact, sleek scale for refined military terminal typography (smaller & cleaner)
 			float drawScale = 0.60f;
 			Vector2 textSize = font.MeasureString(upperText) * drawScale;
 
-			// Precise centering around vanilla's row centerY
+			// Shift down by +6px to precisely align Andy Bold uppercase glyphs with the center line
 			Vector2 textPos = new Vector2(
 				(float)Math.Round(centerX - textSize.X / 2f),
-				(float)Math.Round(centerY - textSize.Y / 2f)
+				(float)Math.Round(centerY - textSize.Y / 2f + 6f)
 			);
 
 			if (isHovered)
 			{
-				// Slim, compact highlight banner (22px tall, 240px wide)
+				// Slim, compact highlight banner (24px tall, 240px wide)
 				float bannerW = 240f;
-				float bannerH = 22f;
+				float bannerH = 24f;
 				float bannerX = (float)Math.Round(centerX - bannerW / 2f);
 				float bannerY = (float)Math.Round(centerY - bannerH / 2f);
 				Rectangle bannerRect = new Rectangle((int)bannerX, (int)bannerY, (int)bannerW, (int)bannerH);
@@ -179,8 +179,8 @@ namespace AutomataMusic.UI
 
 				// 4. Signature NieR square cursor pip (■) to the left of the text
 				int pipSize = 5;
-				int pipX = (int)(textPos.X - 13f);
-				int pipY = (int)Math.Round(centerY - pipSize / 2f);
+				int pipX = (int)(textPos.X - 14f);
+				int pipY = (int)Math.Round(centerY - pipSize / 2f + 1f);
 				sb.Draw(pixel, new Rectangle(pipX, pipY, pipSize, pipSize), new Color(24, 26, 30));
 
 				// 5. High-contrast deep charcoal text (#16181C)
@@ -191,7 +191,7 @@ namespace AutomataMusic.UI
 			{
 				// Unselected buttons: pure, clean, minimalist text with no background boxes or borders
 				// 1. Subtle 1px drop shadow for crisp legibility against orbital background
-				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, textPos + new Vector2(1f, 1f), Color.Black * 0.75f, 0f, Vector2.Zero, drawScale, SpriteEffects.None, 0f);
+				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, textPos + new Vector2(1f, 1f), Color.Black * 0.85f, 0f, Vector2.Zero, drawScale, SpriteEffects.None, 0f);
 
 				// 2. Muted YoRHa bone-silver / platinum text (#D4CEBF)
 				Color idleText = new Color(212, 206, 191);

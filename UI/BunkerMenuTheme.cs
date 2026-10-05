@@ -28,10 +28,10 @@ namespace AutomataMusic.UI
 			int screenH = Main.screenHeight;
 			float time = (float)Main.timeForVisualEffects * 0.02f;
 
-			// Deterministic title transition timer (6.0s total loop)
+			// Deterministic title transition timer (6.5s total loop)
 			titleTimer += 0.01667f;
-			if (titleTimer >= 6.0f)
-				titleTimer -= 6.0f;
+			if (titleTimer >= 6.5f)
+				titleTimer -= 6.5f;
 
 			// 1. Fully procedural orbital scene (rotating Earth, sunrise, nebula, stars, moon)
 			OrbitalBackdrop.Draw(sb, pixel, screenW, screenH);
@@ -171,8 +171,8 @@ namespace AutomataMusic.UI
 			ghostAlpha = 0f;
 			sliceLineAlpha = 0f;
 
-			// Phase 0: Pure, stable "T E R R A R I A" (0.0s -> 3.8s)
-			if (timer < 3.8f)
+			// Phase 0: Pure, stable "T E R R A R I A" (0.0s -> 3.2s)
+			if (timer < 3.2f)
 			{
 				for (int i = 0; i < 8; i++)
 					displayLetters[i] = TerrariaLetters[i];
@@ -181,15 +181,15 @@ namespace AutomataMusic.UI
 				return;
 			}
 
-			// Phase 1: Progressive NieR digital decode transition into Automata (3.8s -> 4.2s, 0.4s)
+			// Phase 1: Progressive NieR digital decode transition into Automata (3.2s -> 4.2s, 1.0s duration)
 			if (timer < 4.2f)
 			{
-				float prog = (timer - 3.8f) / 0.4f; // 0.0 -> 1.0
+				float prog = (timer - 3.2f) / 1.0f; // 0.0 -> 1.0
 				int switchedCount = (int)(prog * 8f);
-				ghostAlpha = 0.45f * ((float)Math.Sin(time * 50f) * 0.3f + 0.7f);
-				sliceLineAlpha = 0.65f * ((float)Math.Sin(time * 70f) * 0.4f + 0.6f);
+				ghostAlpha = 0.45f * ((float)Math.Sin(time * 45f) * 0.3f + 0.7f);
+				sliceLineAlpha = 0.65f * ((float)Math.Sin(time * 65f) * 0.4f + 0.6f);
 
-				int seed = (int)(time * 30f);
+				int seed = (int)(time * 24f);
 				Random rand = new Random(seed);
 
 				// Default all to Terraria
@@ -243,15 +243,15 @@ namespace AutomataMusic.UI
 				return;
 			}
 
-			// Phase 3: Glitch / digital decode back to "T E R R A R I A" (5.2s -> 5.5s, 0.3s)
-			if (timer < 5.5f)
+			// Phase 3: Glitch / digital decode back to "T E R R A R I A" (5.2s -> 5.7s, 0.5s duration)
+			if (timer < 5.7f)
 			{
-				float prog = (timer - 5.2f) / 0.3f; // 0.0 -> 1.0
+				float prog = (timer - 5.2f) / 0.5f; // 0.0 -> 1.0
 				int revertedCount = (int)(prog * 8f);
-				ghostAlpha = 0.40f * ((float)Math.Sin(time * 60f) * 0.3f + 0.7f);
-				sliceLineAlpha = 0.70f * ((float)Math.Sin(time * 80f) * 0.4f + 0.6f);
+				ghostAlpha = 0.40f * ((float)Math.Sin(time * 50f) * 0.3f + 0.7f);
+				sliceLineAlpha = 0.70f * ((float)Math.Sin(time * 70f) * 0.4f + 0.6f);
 
-				int seed = (int)(time * 30f) + 42;
+				int seed = (int)(time * 24f) + 42;
 				Random rand = new Random(seed);
 
 				// Start with Automata
@@ -282,7 +282,7 @@ namespace AutomataMusic.UI
 				return;
 			}
 
-			// Phase 4: Settle back to stable "T E R R A R I A" (5.5s -> 6.0s)
+			// Phase 4: Settle back to stable "T E R R A R I A" (5.7s -> 6.5s)
 			for (int i = 0; i < 8; i++)
 				displayLetters[i] = TerrariaLetters[i];
 

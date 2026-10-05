@@ -10,13 +10,13 @@ namespace AutomataMusic.UI
 	public static class BunkerMenuTheme
 	{
 		// FX
-		private static float glitchTimer = 0f;
-		private static float nextGlitchInterval = 3.2f;
-		private static float glitchIntensity = 0f;
-		private static float microGlitchTimer = 0f;
-		private static float nextMicroInterval = 1.1f;
+		private static float titleTimer = 0f;
 
-		public static void Unload() => OrbitalBackdrop.Unload();
+		public static void Unload()
+		{
+			OrbitalBackdrop.Unload();
+			titleTimer = 0f;
+		}
 
 		public static void Draw(SpriteBatch sb, Vector2 logoDrawCenter)
 		{
@@ -28,33 +28,10 @@ namespace AutomataMusic.UI
 			int screenH = Main.screenHeight;
 			float time = (float)Main.timeForVisualEffects * 0.02f;
 
-			// Multi-frequency organic NieR terminal glitch generator
-			glitchTimer += 0.016f;
-			microGlitchTimer += 0.016f;
-
-			// Frequent micro-twitches every 0.9 - 2.0 seconds
-			if (microGlitchTimer > nextMicroInterval)
-			{
-				microGlitchTimer = 0f;
-				nextMicroInterval = 0.9f + (float)Main.rand.NextDouble() * 1.1f;
-				if (glitchIntensity < 0.45f)
-					glitchIntensity = 0.55f;
-			}
-
-			// Major system desync & "AUTOMATA" title glitch every 2.8 - 4.6 seconds
-			if (glitchTimer > nextGlitchInterval)
-			{
-				glitchTimer = 0f;
-				nextGlitchInterval = 2.8f + (float)Main.rand.NextDouble() * 1.8f;
-				glitchIntensity = 1.0f;
-			}
-
-			// Organic recovery decay
-			if (glitchIntensity > 0f)
-			{
-				glitchIntensity -= 0.035f;
-				if (glitchIntensity < 0f) glitchIntensity = 0f;
-			}
+			// Deterministic title transition timer (5.6s total loop)
+			titleTimer += 0.01667f;
+			if (titleTimer >= 5.6f)
+				titleTimer -= 5.6f;
 
 			// 1. Fully procedural orbital scene (rotating Earth, sunrise, nebula, stars, moon)
 			OrbitalBackdrop.Draw(sb, pixel, screenW, screenH);
@@ -62,7 +39,7 @@ namespace AutomataMusic.UI
 			// 2. Tactical YoRHa Military Corner Brackets
 			DrawTacticalFrame(sb, pixel, screenW, screenH, time);
 
-			// 4. NieR:Automata Stylized Title Card / Logo
+			// 3. NieR:Automata Stylized Title Card / Logo
 			DrawNierTitleCard(sb, pixel, screenW, logoDrawCenter, time);
 		}
 
@@ -172,65 +149,97 @@ namespace AutomataMusic.UI
 			}
 		}
 
-		private static string GetGlitchTitle(string original, float intensity, float time, out bool isAutomata)
+		private static readonly string[] TerrariaLetters = { "T", "E", "R", "R", "A", "R", "I", "A" };
+		private static readonly string[] AutomataLetters = { "A", "U", "T", "O", "M", "A", "T", "A" };
+
+		private static string GetTitleText(float timer, float time, out string katakanaText, out float glitchJitter, out bool isGhosting)
 		{
-			isAutomata = false;
-			if (intensity < 0.15f)
-				return original;
+			glitchJitter = 0f;
+			isGhosting = false;
 
-			int seed = (int)(time * 22f);
-			Random gRand = new Random(seed);
-
-			// Glitch into "A U T O M A T A" for split seconds during peak glitch
-			string target = original;
-			if (intensity > 0.45f && (seed % 5 == 0 || seed % 7 == 0))
+			// Phase 0: Stable "T E R R A R I A" (0.0s -> 3.8s)
+			if (timer < 3.8f)
 			{
-				isAutomata = true;
-				target = "A U T O M A T A";
+				katakanaText = " / テラリア";
+				return "T E R R A R I A";
 			}
 
-			char[] chars = target.ToCharArray();
-			const string glitchPool = "01X_#@!$?%*[]/\\";
-
-			for (int i = 0; i < chars.Length; i++)
+			// Phase 1: Letters start to switch to Automata (3.8s -> 4.2s, 0.4s transition)
+			if (timer < 4.2f)
 			{
-				if (chars[i] == ' ')
-					continue;
+				float prog = (timer - 3.8f) / 0.4f; // 0.0 -> 1.0
+				int lettersToSwitch = (int)(prog * 8); // 0 -> 8 letters
+				glitchJitter = (float)Math.Sin(time * 65f) * 2.2f;
+				isGhosting = true;
 
-				// Chance to corrupt individual character into cyber glyph
-				if (gRand.NextDouble() < intensity * 0.50f)
+				int seed = (int)(time * 26f);
+				Random rand = new Random(seed);
+				const string glyphs = "01X_#?*[]/\\";
+
+				string[] current = new string[8];
+				for (int i = 0; i < 8; i++)
 				{
-					chars[i] = glitchPool[gRand.Next(glitchPool.Length)];
+					if (i < lettersToSwitch)
+					{
+						current[i] = AutomataLetters[i];
+					}
+					else if (i == lettersToSwitch && rand.NextDouble() < 0.65)
+					{
+						current[i] = glyphs[rand.Next(glyphs.Length)].ToString();
+					}
+					else
+					{
+						current[i] = TerrariaLetters[i];
+					}
 				}
+
+				katakanaText = lettersToSwitch >= 4 ? " / オートマタ" : " / テラリア";
+				return string.Join(" ", current);
 			}
 
-			return new string(chars);
-		}
-
-		private static string GetGlitchKatakana(string original, float intensity, float time, bool isAutomata)
-		{
-			if (intensity < 0.20f)
-				return original;
-
-			int seed = (int)(time * 20f) + 107;
-			Random gRand = new Random(seed);
-
-			string target = isAutomata ? " / オートマタ" : original;
-			char[] chars = target.ToCharArray();
-
-			const string kataGlitch = "01_#X/テラリアオートマタ";
-			for (int i = 0; i < chars.Length; i++)
+			// Phase 2: Hold "A U T O M A T A" for 1.0 full second (4.2s -> 5.2s)
+			if (timer < 5.2f)
 			{
-				if (chars[i] == ' ' || chars[i] == '/')
-					continue;
-
-				if (gRand.NextDouble() < intensity * 0.55f)
-				{
-					chars[i] = kataGlitch[gRand.Next(kataGlitch.Length)];
-				}
+				katakanaText = " / オートマタ";
+				return "A U T O M A T A";
 			}
 
-			return new string(chars);
+			// Phase 3: Glitches back to "T E R R A R I A" (5.2s -> 5.55s, 0.35s transition)
+			if (timer < 5.55f)
+			{
+				float prog = (timer - 5.2f) / 0.35f; // 0.0 -> 1.0
+				int lettersBack = (int)(prog * 8); // 0 -> 8 letters back to Terraria
+				glitchJitter = (float)Math.Sin(time * 65f) * 2.2f;
+				isGhosting = true;
+
+				int seed = (int)(time * 26f) + 37;
+				Random rand = new Random(seed);
+				const string glyphs = "01X_#?*[]/\\";
+
+				string[] current = new string[8];
+				for (int i = 0; i < 8; i++)
+				{
+					if (i < lettersBack)
+					{
+						current[i] = TerrariaLetters[i];
+					}
+					else if (i == lettersBack && rand.NextDouble() < 0.65)
+					{
+						current[i] = glyphs[rand.Next(glyphs.Length)].ToString();
+					}
+					else
+					{
+						current[i] = AutomataLetters[i];
+					}
+				}
+
+				katakanaText = lettersBack >= 4 ? " / テラリア" : " / オートマタ";
+				return string.Join(" ", current);
+			}
+
+			// Phase 4: Settle back to "T E R R A R I A" (5.55s -> 5.6s)
+			katakanaText = " / テラリア";
+			return "T E R R A R I A";
 		}
 
 		private static void DrawNierTitleCard(SpriteBatch sb, Texture2D pixel, int screenW, Vector2 logoDrawCenter, float time)
@@ -240,27 +249,9 @@ namespace AutomataMusic.UI
 			if (fontDeath == null || fontMouse == null)
 				return;
 
-			// Multi-harmonic glitch crackle for rapid, erratic digital stutter
-			float effectiveGlitch = glitchIntensity;
-			if (effectiveGlitch > 0.04f)
-			{
-				float crackle = (float)(Math.Sin(time * 48f) * 0.40 + Math.Sin(time * 75f) * 0.30 + 0.70);
-				effectiveGlitch = MathHelper.Clamp(effectiveGlitch * crackle, 0f, 1f);
-			}
-
 			float centerX = screenW / 2f;
 			float titleY = Math.Max(70f, logoDrawCenter.Y - 60f);
 
-			float jitterX = 0f;
-			float jitterY = 0f;
-			if (effectiveGlitch > 0.05f)
-			{
-				jitterX = (float)Math.Sin(time * 42f) * effectiveGlitch * 7.5f;
-				jitterY = (float)Math.Cos(time * 34f) * effectiveGlitch * 3.5f;
-			}
-
-			string mainTitle = "T E R R A R I A";
-			string katakana = " / テラリア";
 			string subTitle = MenuLyrics.CheckCjkSupport(fontMouse)
 				? "— YoRHa OS v4.02 // 人類に栄光あれ —"
 				: "— YoRHa OS v4.02 // For the Glory of Mankind —";
@@ -269,17 +260,23 @@ namespace AutomataMusic.UI
 			float katakanaScale = 0.78f;
 			float subScale = 0.68f;
 
-			Vector2 mainSize = fontDeath.MeasureString(mainTitle) * titleScale;
-			Vector2 kataSize = fontMouse.MeasureString(katakana) * katakanaScale;
+			// Dynamic letter-by-letter switch to Automata, 1.0s hold, and glitch back (monochrome only)
+			string displayTitle = GetTitleText(titleTimer, time, out string katakanaRaw, out float glitchJitter, out bool isGhosting);
+			string displayKatakana = MenuLyrics.CheckCjkSupport(fontMouse)
+				? katakanaRaw
+				: (katakanaRaw.Contains("オートマタ") ? " / Automata" : " / Terraria");
+
+			Vector2 mainSize = fontDeath.MeasureString("T E R R A R I A") * titleScale;
+			Vector2 kataSize = fontMouse.MeasureString(" / テラリア") * katakanaScale;
 			Vector2 subSize = fontMouse.MeasureString(subTitle) * subScale;
 
 			float totalTitleW = mainSize.X + kataSize.X + 8f;
 			float cardW = Math.Max(totalTitleW, subSize.X) + 84f;
 			float cardH = 88f;
 
-			Rectangle cardRect = new Rectangle((int)(centerX - cardW / 2f + jitterX), (int)(titleY - 14f + jitterY), (int)cardW, (int)cardH);
+			Rectangle cardRect = new Rectangle((int)(centerX - cardW / 2f), (int)(titleY - 14f), (int)cardW, (int)cardH);
 
-			// 1. Soft dark translucent backing banner
+			// 1. Clean dark translucent backing banner (no lines or moving slice noise)
 			sb.Draw(pixel, cardRect, new Color(12, 13, 17) * 0.92f);
 
 			// 2. Faint border outline
@@ -307,102 +304,38 @@ namespace AutomataMusic.UI
 			sb.Draw(pixel, new Rectangle(cardRect.X - 1, midY - 2, 3, 5), bracketColor * 0.7f);
 			sb.Draw(pixel, new Rectangle(cardRect.Right - 2, midY - 2, 3, 5), bracketColor * 0.7f);
 
-			// 4. Horizontal CRT slice scanline displacement across the card during glitches
-			if (effectiveGlitch > 0.18f)
-			{
-				int sliceCount = (int)(3 + effectiveGlitch * 4);
-				for (int s = 0; s < sliceCount; s++)
-				{
-					int sliceY = cardRect.Y + 4 + (int)(((s + 0.5f) / sliceCount) * (cardRect.Height - 10));
-					int sliceH = 4 + (s * 3) % 7;
-					float shiftDir = (float)Math.Sin(time * 42f + s * 2.7f);
-					int shiftPx = (int)(shiftDir * (8f + effectiveGlitch * 20f));
-
-					Rectangle sliceRect = new Rectangle(cardRect.X + shiftPx, sliceY, cardRect.Width, sliceH);
-					sb.Draw(pixel, sliceRect, new Color(14, 15, 20) * 0.95f);
-
-					Color sliceColor = (s % 2 == 0)
-						? new Color(255, 60, 90, 0) * (effectiveGlitch * 0.75f)
-						: new Color(60, 220, 255, 0) * (effectiveGlitch * 0.75f);
-					sb.Draw(pixel, new Rectangle(sliceRect.X, sliceY, sliceRect.Width, 1), sliceColor);
-				}
-			}
-
-			// 5. Digital noise rectangles (bursting machine data corruption)
-			if (effectiveGlitch > 0.28f)
-			{
-				Random nRand = new Random((int)(time * 28f));
-				int numBlocks = (int)(4 + effectiveGlitch * 6);
-				for (int b = 0; b < numBlocks; b++)
-				{
-					int bw = nRand.Next(18, 65);
-					int bh = nRand.Next(2, 6);
-					int bx = cardRect.X + nRand.Next(Math.Max(1, cardRect.Width - bw));
-					int by = cardRect.Y + nRand.Next(Math.Max(1, cardRect.Height - bh));
-
-					Color nCol = (nRand.Next(3) == 0)
-						? new Color(255, 70, 90, 0) * (effectiveGlitch * 0.90f)
-						: ((nRand.Next(2) == 0)
-							? new Color(80, 230, 255, 0) * (effectiveGlitch * 0.90f)
-							: new Color(250, 245, 230) * (effectiveGlitch * 0.85f));
-
-					sb.Draw(pixel, new Rectangle(bx, by, bw, bh), nCol);
-				}
-			}
-
-			// 6. Top Classification Bar inside the card
+			// 4. Top Classification Bar inside the card (Clean, no NOMINAL badge)
 			float hdrScale = 0.52f;
 			string headerText = "[ YoRHa FFCS // PROJECT: TERRARIA // VER. 1.1945 ]";
 			Vector2 hdrPos = new Vector2(cardRect.X + 16, cardRect.Y + 7);
 			Utils.DrawBorderString(sb, headerText, hdrPos, new Color(175, 168, 150) * 0.85f, hdrScale);
 
-			// 7. Main Title & Katakana with Character Corruption & Chromatic Split
-			string displayTitle = GetGlitchTitle(mainTitle, effectiveGlitch, time, out bool isAutomata);
-			string baseKatakana = MenuLyrics.CheckCjkSupport(fontMouse) ? katakana : " / Terraria";
-			string displayKatakana = GetGlitchKatakana(baseKatakana, effectiveGlitch, time, isAutomata);
+			// 5. Main Title & Katakana (Monochrome only: authentic bone-ivory, no red/cyan glitch)
+			float textStartX = centerX - totalTitleW / 2f + glitchJitter;
+			Vector2 titlePos = new Vector2(textStartX, titleY + 6f);
+			Vector2 kataPos = new Vector2(textStartX + mainSize.X + 8f, titleY + 18f);
 
-			float textStartX = centerX - totalTitleW / 2f + jitterX;
-			Vector2 titlePos = new Vector2(textStartX, titleY + 6f + jitterY);
-			Vector2 kataPos = new Vector2(textStartX + mainSize.X + 8f, titleY + 18f + jitterY);
-
-			// Chromatic aberration RGB split under glitch
-			if (effectiveGlitch > 0.05f)
+			// Subtle monochrome CRT ghosting during transition glitch (pure white, NO colored split)
+			if (isGhosting)
 			{
-				float splitX = (4.5f + 7.5f * effectiveGlitch) * (float)Math.Sin(time * 36f);
-				float splitY = (float)Math.Cos(time * 28f) * (2.2f * effectiveGlitch);
-
-				// Red / Magenta channel shifted left
-				Color redGlitch = new Color(255, 45, 80, 0) * (effectiveGlitch * 0.92f);
-				Vector2 redPos = titlePos + new Vector2(-splitX, -splitY);
-				sb.DrawString(fontDeath, displayTitle, redPos, redGlitch, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
-
-				// Cyan / Sky-blue channel shifted right
-				Color cyanGlitch = new Color(45, 220, 255, 0) * (effectiveGlitch * 0.92f);
-				Vector2 cyanPos = titlePos + new Vector2(splitX, splitY);
-				sb.DrawString(fontDeath, displayTitle, cyanPos, cyanGlitch, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
-
-				// Katakana chromatic split
-				sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(-splitX * 0.7f, 0f), redGlitch * 0.85f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
-				sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(splitX * 0.7f, 0f), cyanGlitch * 0.85f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
+				Vector2 ghostOffset = new Vector2(glitchJitter * 0.75f, 0f);
+				sb.DrawString(fontDeath, displayTitle, titlePos + ghostOffset, Color.White * 0.28f, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
+				sb.DrawString(fontMouse, displayKatakana, kataPos + ghostOffset, Color.White * 0.22f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
 			}
 
-			// Drop shadows
+			// Clean drop shadows
 			sb.DrawString(fontDeath, displayTitle, titlePos + new Vector2(2, 2), Color.Black * 0.85f, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
 			sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(1, 1), Color.Black * 0.7f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
 
-			// Core Title Texts (flashes red/magenta tint during Automata glitch shift)
-			Color mainTitleCol = isAutomata
-				? new Color(255, 110, 110)
-				: Color.Lerp(new Color(248, 242, 222), new Color(255, 130, 130), effectiveGlitch * 0.40f);
+			// Core Title Texts (pure authentic NieR bone-ivory, no red tints)
+			Color mainTitleCol = new Color(248, 242, 222);
 			sb.DrawString(fontDeath, displayTitle, titlePos, mainTitleCol, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
 
-			Color kataCol = isAutomata
-				? new Color(255, 130, 130)
-				: Color.Lerp(new Color(212, 198, 168), new Color(255, 140, 140), effectiveGlitch * 0.40f);
+			Color kataCol = new Color(212, 198, 168);
 			sb.DrawString(fontMouse, displayKatakana, kataPos, kataCol, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
 
-			// 8. Tactical horizontal divider below the main title
-			int divY = (int)(titleY + mainSize.Y + 4f + jitterY);
+			// 6. Tactical horizontal divider below the main title
+			int divY = (int)(titleY + mainSize.Y + 4f);
 			int divW = cardRect.Width - 32;
 			int divX = cardRect.X + 16;
 			Color divColor = new Color(210, 200, 175) * 0.50f;
@@ -414,10 +347,9 @@ namespace AutomataMusic.UI
 			sb.Draw(pixel, new Rectangle(divX + (int)(divW * 0.25f), divY - 1, 2, 3), divColor * 0.7f);
 			sb.Draw(pixel, new Rectangle(divX + (int)(divW * 0.75f), divY - 1, 2, 3), divColor * 0.7f);
 
-			// 9. Subtitle line (For the Glory of Mankind)
-			Vector2 subPos = new Vector2(centerX - subSize.X / 2f + jitterX, divY + 6f);
-			bool isDesync = effectiveGlitch > 0.25f;
-			Color subColor = isDesync ? new Color(245, 130, 120) : new Color(195, 186, 165) * 0.92f;
+			// 7. Subtitle line (For the Glory of Mankind)
+			Vector2 subPos = new Vector2(centerX - subSize.X / 2f, divY + 6f);
+			Color subColor = new Color(195, 186, 165) * 0.92f;
 			Utils.DrawBorderString(sb, subTitle, subPos, subColor, subScale);
 		}
 	}

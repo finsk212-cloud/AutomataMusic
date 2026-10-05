@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using ReLogic.Graphics;
@@ -154,20 +155,30 @@ namespace AutomataMusic.UI
 		private static readonly int[] SwitchOrder = { 2, 5, 1, 6, 3, 0, 4, 7 };
 		private static readonly char[] GlitchGlyphs = { '0', '1', 'u', 'x', 'm', 't', '_', '-', '/' };
 
+		private struct GlitchBlock
+		{
+			public int Slot;
+			public float RelX;
+			public float RelY;
+			public int Width;
+			public int Height;
+			public float Alpha;
+		}
+
 		private static void GetTitleGlitchState(
 			float timer, float time,
 			out string[] displayLetters,
 			out string katakanaRaw,
 			out float ghostAlpha,
 			out float sliceLineAlpha,
-			out int whiteBlockSlot,
+			out List<GlitchBlock> glitchBlocks,
 			out float[] slotJitterX,
 			out float[] slotJitterY)
 		{
 			displayLetters = new string[8];
 			slotJitterX = new float[8];
 			slotJitterY = new float[8];
-			whiteBlockSlot = -1;
+			glitchBlocks = new List<GlitchBlock>();
 			ghostAlpha = 0f;
 			sliceLineAlpha = 0f;
 
@@ -212,10 +223,23 @@ namespace AutomataMusic.UI
 					slotJitterY[activeSlot] = (float)(rand.NextDouble() * 2.0 - 1.0);
 				}
 
-				// White data block artifact on 1 random glitched slot
-				if (switchedCount > 0 && rand.NextDouble() < 0.75)
+				// Multiple white data block artifacts across corrupted and active letters
+				if (switchedCount > 0)
 				{
-					whiteBlockSlot = SwitchOrder[rand.Next(Math.Min(switchedCount + 1, 8))];
+					int numBlocks = rand.Next(4, 9);
+					for (int b = 0; b < numBlocks; b++)
+					{
+						int targetSlot = SwitchOrder[rand.Next(Math.Min(switchedCount + 1, 8))];
+						glitchBlocks.Add(new GlitchBlock
+						{
+							Slot = targetSlot,
+							RelX = (float)(rand.NextDouble() * 24.0 - 4.0),
+							RelY = (float)(rand.NextDouble() * 26.0),
+							Width = rand.Next(6, 22),
+							Height = rand.Next(3, 9),
+							Alpha = 0.80f + (float)rand.NextDouble() * 0.20f
+						});
+					}
 				}
 
 				katakanaRaw = switchedCount >= 4 ? " / オートマタ" : " / テラリア";
@@ -233,12 +257,47 @@ namespace AutomataMusic.UI
 				// Vertical ghost duplicate faintly visible underneath like title screen in video
 				ghostAlpha = 0.36f + (float)Math.Sin(time * 8f) * 0.08f;
 
-				// Subtle occasional white data block artifact on letter corner (e.g. slot 4 'M' or slot 6 'T')
-				int cyclePulse = (int)(timer * 6f) % 4;
-				if (cyclePulse == 1)
-					whiteBlockSlot = 4; // 'M'
-				else if (cyclePulse == 3)
-					whiteBlockSlot = 6; // 'T'
+				// Authentic NieR white data block accents on letter strokes (Slide 7 in video)
+				int pulse = (int)(timer * 6f) % 4;
+				glitchBlocks.Add(new GlitchBlock
+				{
+					Slot = 4, // 'M'
+					RelX = 5f,
+					RelY = 4f,
+					Width = 14,
+					Height = 5,
+					Alpha = 0.95f
+				});
+				glitchBlocks.Add(new GlitchBlock
+				{
+					Slot = 6, // 'T'
+					RelX = 2f,
+					RelY = 12f,
+					Width = 10,
+					Height = 4,
+					Alpha = 0.88f
+				});
+				glitchBlocks.Add(new GlitchBlock
+				{
+					Slot = 1, // 'U'
+					RelX = 8f,
+					RelY = 2f,
+					Width = 8,
+					Height = 6,
+					Alpha = 0.90f
+				});
+				if (pulse >= 2)
+				{
+					glitchBlocks.Add(new GlitchBlock
+					{
+						Slot = 7, // 'A'
+						RelX = 4f,
+						RelY = 16f,
+						Width = 12,
+						Height = 4,
+						Alpha = 0.85f
+					});
+				}
 
 				return;
 			}
@@ -273,9 +332,20 @@ namespace AutomataMusic.UI
 					slotJitterY[activeSlot] = (float)(rand.NextDouble() * 2.0 - 1.0);
 				}
 
-				if (revertedCount > 0 && rand.NextDouble() < 0.70)
+				// Multiple white data blocks during glitch back
+				int numBlocks = rand.Next(4, 8);
+				for (int b = 0; b < numBlocks; b++)
 				{
-					whiteBlockSlot = SwitchOrder[rand.Next(8)];
+					int targetSlot = SwitchOrder[rand.Next(8)];
+					glitchBlocks.Add(new GlitchBlock
+					{
+						Slot = targetSlot,
+						RelX = (float)(rand.NextDouble() * 24.0 - 4.0),
+						RelY = (float)(rand.NextDouble() * 26.0),
+						Width = rand.Next(6, 20),
+						Height = rand.Next(3, 8),
+						Alpha = 0.75f + (float)rand.NextDouble() * 0.25f
+					});
 				}
 
 				katakanaRaw = revertedCount >= 4 ? " / テラリア" : " / オートマタ";
@@ -314,7 +384,7 @@ namespace AutomataMusic.UI
 				out string katakanaRaw,
 				out float ghostAlpha,
 				out float sliceLineAlpha,
-				out int whiteBlockSlot,
+				out List<GlitchBlock> glitchBlocks,
 				out float[] jitterX,
 				out float[] jitterY);
 
@@ -395,15 +465,18 @@ namespace AutomataMusic.UI
 
 				// Main letter glyph
 				sb.DrawString(fontDeath, letter, charPos, mainTitleCol, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
+			}
 
-				// NieR solid white data block glitch artifact (Slide 1, 3, 7 in reference video)
-				if (i == whiteBlockSlot)
+			// Draw NieR solid white data block glitch artifacts (Slide 1, 3, 7 in reference video)
+			for (int b = 0; b < glitchBlocks.Count; b++)
+			{
+				var gb = glitchBlocks[b];
+				if (gb.Slot >= 0 && gb.Slot < 8)
 				{
-					int blockW = 14;
-					int blockH = 6;
-					int bx = (int)(drawX + lSize.X / 2f - blockW / 2f);
-					int by = (int)(drawY + lSize.Y * 0.45f);
-					sb.Draw(pixel, new Rectangle(bx, by, blockW, blockH), Color.White * 0.95f);
+					float slotX = textStartX + gb.Slot * slotWidth;
+					int bx = (int)(slotX + gb.RelX + jitterX[gb.Slot]);
+					int by = (int)(titleY + 6f + gb.RelY + jitterY[gb.Slot]);
+					sb.Draw(pixel, new Rectangle(bx, by, gb.Width, gb.Height), Color.White * gb.Alpha);
 				}
 			}
 

@@ -134,23 +134,34 @@ namespace AutomataMusic.UI
 				return;
 			}
 
-			// Uppercase formatting for authentic NieR YoRHa military UI
+			// Clean uppercase formatting for authentic NieR YoRHa military UI
 			string upperText = text.ToUpperInvariant();
-			Vector2 textSize = font.MeasureString(upperText) * scale;
+
+			float screenW = Main.screenWidth;
+			float centerX = screenW / 2f;
 
 			// Check if the button is hovered:
 			// In vanilla Terraria, hovered buttons use bright yellow/gold (high R & G, low B)
 			bool isHovered = (color.R > 210 && color.G > 160 && color.B < 120);
 
-			// Calculate button banner dimensions
-			float padX = 28f * scale;
-			float padY = 6f * scale;
-			float bannerW = Math.Max(textSize.X + padX * 2f, 280f * scale);
-			float bannerH = textSize.Y + padY * 2f;
-			float bannerX = position.X - origin.X * scale + (textSize.X - bannerW) / 2f;
-			float bannerY = position.Y - origin.Y * scale - padY;
+			// Proportional, elegant text scale that fits comfortably in a 30px row
+			float drawScale = isHovered ? 0.82f : 0.78f;
+			Vector2 textSize = font.MeasureString(upperText) * drawScale;
+
+			// Sleek, uniform dimensions so all buttons align into a perfect military block
+			float bannerW = 340f;
+			float bannerH = 28f;
+			float bannerX = centerX - bannerW / 2f;
+
+			// Center the 28px banner on the text line (Terraria spaces lines ~42px, giving ~14px clean margins)
+			float centerY = position.Y + 14f;
+			float bannerY = centerY - bannerH / 2f;
 
 			Rectangle bannerRect = new Rectangle((int)bannerX, (int)bannerY, (int)bannerW, (int)bannerH);
+			Vector2 textPos = new Vector2(
+				(float)Math.Round(centerX - textSize.X / 2f),
+				(float)Math.Round(centerY - textSize.Y / 2f)
+			);
 
 			if (isHovered)
 			{
@@ -158,50 +169,61 @@ namespace AutomataMusic.UI
 				Color bannerBg = new Color(238, 232, 212);
 				sb.Draw(pixel, bannerRect, bannerBg);
 
-				// 2. Dark charcoal border frame
-				Color bannerBorder = new Color(30, 32, 36);
-				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, bannerRect.Width, 1), bannerBorder * 0.9f);
-				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - 1, bannerRect.Width, 1), bannerBorder * 0.9f);
+				// 2. Dark charcoal top & bottom borders
+				Color borderCol = new Color(28, 30, 34);
+				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, bannerRect.Width, 1), borderCol * 0.9f);
+				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - 1, bannerRect.Width, 1), borderCol * 0.9f);
 
-				// 3. Signature NieR square cursor pip on the left of the button (■)
-				int pipSize = Math.Max(7, (int)(8f * scale));
-				int pipX = (int)(bannerRect.X + 12f * scale);
-				int pipY = (int)(bannerRect.Y + (bannerRect.Height - pipSize) / 2f);
-				sb.Draw(pixel, new Rectangle(pipX, pipY, pipSize, pipSize), new Color(22, 24, 28));
+				// 3. Left and right 2px end-caps
+				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, 2, bannerRect.Height), borderCol * 0.9f);
+				sb.Draw(pixel, new Rectangle(bannerRect.Right - 2, bannerRect.Y, 2, bannerRect.Height), borderCol * 0.9f);
 
-				// 4. Subtle YoRHa bracket notch indicator on the right edge
-				int notchH = (int)(10f * scale);
-				int notchX = bannerRect.Right - (int)(10f * scale);
-				int notchY = (int)(bannerRect.Y + (bannerRect.Height - notchH) / 2f);
-				sb.Draw(pixel, new Rectangle(notchX, notchY, 2, notchH), new Color(35, 38, 42));
+				// 4. Subtle corner bracket ticks (matching title card style)
+				int arm = 8;
+				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, arm, 2), borderCol);
+				sb.Draw(pixel, new Rectangle(bannerRect.Right - arm, bannerRect.Y, arm, 2), borderCol);
+				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - 2, arm, 2), borderCol);
+				sb.Draw(pixel, new Rectangle(bannerRect.Right - arm, bannerRect.Bottom - 2, arm, 2), borderCol);
 
-				// 5. High-contrast deep charcoal text on the light ivory banner
+				// 5. Signature NieR square cursor pip (■) on the left side of text
+				int pipSize = 6;
+				int pipX = (int)(textPos.X - 16f);
+				int pipY = (int)(centerY - pipSize / 2f);
+				sb.Draw(pixel, new Rectangle(pipX, pipY, pipSize, pipSize), borderCol);
+
+				// 6. High-contrast deep charcoal text
 				Color textDark = new Color(22, 24, 28);
-				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, position, textDark, rotation, origin, scale, effects, layerDepth);
+				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, textPos, textDark, 0f, Vector2.Zero, drawScale, SpriteEffects.None, 0f);
 			}
 			else
 			{
-				// 1. Unselected state: subtle dark translucent backing bar (#0C0D11 * 0.65f)
-				Color idleBg = new Color(12, 13, 17) * 0.65f;
+				// 1. Unselected state: subtle, clean dark translucent backing (#0C0D11 at 40% opacity)
+				Color idleBg = new Color(12, 13, 17) * 0.40f;
 				sb.Draw(pixel, bannerRect, idleBg);
 
 				// 2. Faint guideline border
-				Color idleBorder = new Color(180, 172, 150) * 0.28f;
+				Color idleBorder = new Color(185, 178, 155) * 0.22f;
 				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, bannerRect.Width, 1), idleBorder);
 				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - 1, bannerRect.Width, 1), idleBorder);
 
-				// 3. Corner tick brackets
-				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, 2, 4), idleBorder * 0.8f);
-				sb.Draw(pixel, new Rectangle(bannerRect.Right - 2, bannerRect.Y, 2, 4), idleBorder * 0.8f);
-				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - 4, 2, 4), idleBorder * 0.8f);
-				sb.Draw(pixel, new Rectangle(bannerRect.Right - 2, bannerRect.Bottom - 4, 2, 4), idleBorder * 0.8f);
+				// 3. Crisp corner ticks (matching Title Card YoRHa brackets)
+				int tickArm = 6;
+				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, tickArm, 1), idleBorder * 0.9f);
+				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Y, 1, 3), idleBorder * 0.9f);
+				sb.Draw(pixel, new Rectangle(bannerRect.Right - tickArm, bannerRect.Y, tickArm, 1), idleBorder * 0.9f);
+				sb.Draw(pixel, new Rectangle(bannerRect.Right - 1, bannerRect.Y, 1, 3), idleBorder * 0.9f);
 
-				// 4. Drop shadow
-				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, position + new Vector2(1.5f, 1.5f), Color.Black * 0.85f, rotation, origin, scale, effects, layerDepth);
+				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - 1, tickArm, 1), idleBorder * 0.9f);
+				sb.Draw(pixel, new Rectangle(bannerRect.X, bannerRect.Bottom - 3, 1, 3), idleBorder * 0.9f);
+				sb.Draw(pixel, new Rectangle(bannerRect.Right - tickArm, bannerRect.Bottom - 1, tickArm, 1), idleBorder * 0.9f);
+				sb.Draw(pixel, new Rectangle(bannerRect.Right - 1, bannerRect.Bottom - 3, 1, 3), idleBorder * 0.9f);
+
+				// 4. Clean drop shadow
+				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, textPos + new Vector2(1.5f, 1.5f), Color.Black * 0.85f, 0f, Vector2.Zero, drawScale, SpriteEffects.None, 0f);
 
 				// 5. Muted YoRHa bone-silver text
 				Color idleText = new Color(218, 210, 192) * 0.90f;
-				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, position, idleText, rotation, origin, scale, effects, layerDepth);
+				DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, textPos, idleText, 0f, Vector2.Zero, drawScale, SpriteEffects.None, 0f);
 			}
 		}
 	}

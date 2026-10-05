@@ -1,4 +1,7 @@
+using System;
 using AutomataMusic.Common;
+using AutomataMusic.UI;
+using Terraria;
 using Terraria.ModLoader;
 
 namespace AutomataMusic
@@ -37,8 +40,14 @@ namespace AutomataMusic
 			}
 		}
 
+		public override void Load()
+		{
+			NierMenuButtons.Load();
+		}
+
 		public override void Unload()
 		{
+			NierMenuButtons.Unload();
 			MusicHelper.Unload();
 		}
 	}

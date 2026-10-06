@@ -165,7 +165,109 @@ namespace AutomataMusic.UI
 			public float Alpha;
 		}
 
+		private struct TearLine
+		{
+			public float RelY, XFrac, WFrac, Alpha;
+			public int H;
+		}
+
+		private static float glitchChroma, glitchShake;
+		private static readonly TearLine[] tearLines = new TearLine[4];
+		private static int tearCount;
+
+		// Wraps the letter-decoding state with NieR-style signal instability:
+		// chromatic split, whole-title shake, horizontal tear lines, stray glyph flicker and data blocks.
 		private static void GetTitleGlitchState(
+			float timer, float time,
+			out string[] displayLetters,
+			out string katakanaRaw,
+			out float ghostAlpha,
+			out float sliceLineAlpha,
+			out List<GlitchBlock> glitchBlocks,
+			out float[] slotJitterX,
+			out float[] slotJitterY)
+		{
+			GetTitleGlitchStateCore(timer, time, out displayLetters, out katakanaRaw, out ghostAlpha, out sliceLineAlpha, out glitchBlocks, out slotJitterX, out slotJitterY);
+
+			float inten;
+			bool macro = timer >= 3.0f && timer < 6.1f;
+			if (timer < 3.0f) inten = 0f;
+			else if (timer < 3.2f) inten = 0.55f;        // signal starts to destabilise
+			else if (timer < 4.2f) inten = 1f;
+			else if (timer < 5.2f) inten = 0.15f;
+			else if (timer < 5.7f) inten = 1f;
+			else if (timer < 6.1f) inten = 0.45f * (1f - (timer - 5.7f) / 0.4f);
+			else inten = 0f;
+
+			int frame = (int)(time * 24f);
+			Random r = new Random(frame * 7919 + 13);
+
+			// Short random blips while the title is otherwise stable
+			if (inten < 0.2f && new Random((frame / 2) * 104729 + 7).Next(34) == 0)
+				inten = Math.Max(inten, 0.5f);
+
+			tearCount = 0;
+			glitchChroma = 0f;
+			glitchShake = 0f;
+			if (inten <= 0f)
+				return;
+
+			glitchChroma = inten * (1.5f + (float)r.NextDouble() * 5.5f);
+			if (r.NextDouble() < 0.55)
+				glitchShake = ((float)r.NextDouble() - 0.5f) * 2f * inten * 5f;
+
+			ghostAlpha = Math.Max(ghostAlpha, 0.22f * inten);
+			sliceLineAlpha = Math.Max(sliceLineAlpha, r.NextDouble() < 0.5 ? 0.5f * inten : 0f);
+
+			tearCount = 1 + (int)(inten * 3f * r.NextDouble());
+			for (int i = 0; i < tearCount; i++)
+			{
+				tearLines[i] = new TearLine
+				{
+					RelY = (float)r.NextDouble() * 38f,
+					XFrac = (float)r.NextDouble() * 0.6f,
+					WFrac = 0.15f + (float)r.NextDouble() * 0.5f,
+					Alpha = (0.35f + (float)r.NextDouble() * 0.5f) * Math.Min(1f, inten + 0.3f),
+					H = r.NextDouble() < 0.7 ? 1 : 2
+				};
+			}
+
+			// Extra data blocks
+			int extra = 1 + (int)(inten * 4f);
+			for (int b = 0; b < extra; b++)
+			{
+				glitchBlocks.Add(new GlitchBlock
+				{
+					Slot = r.Next(8),
+					RelX = (float)(r.NextDouble() * 26.0 - 4.0),
+					RelY = (float)(r.NextDouble() * 28.0),
+					Width = r.Next(5, 26),
+					Height = r.Next(2, 7),
+					Alpha = 0.7f + (float)r.NextDouble() * 0.3f
+				});
+			}
+
+			if (macro)
+			{
+				// Unstable signal: letters randomly flick to glyphs and jump sideways
+				for (int i = 0; i < 8; i++)
+				{
+					if (r.NextDouble() < 0.10 * inten)
+					{
+						displayLetters[i] = GlitchGlyphs[r.Next(GlitchGlyphs.Length)].ToString();
+						slotJitterX[i] += (float)(r.NextDouble() * 4.0 - 2.0);
+					}
+					else if (r.NextDouble() < 0.22 * inten)
+					{
+						slotJitterX[i] += (float)(r.NextDouble() * 10.0 - 5.0) * inten;
+					}
+					if (r.NextDouble() < 0.08 * inten)
+						slotJitterY[i] += (float)(r.NextDouble() * 4.0 - 2.0);
+				}
+			}
+		}
+
+		private static void GetTitleGlitchStateCore(
 			float timer, float time,
 			out string[] displayLetters,
 			out string katakanaRaw,
@@ -395,10 +497,14 @@ namespace AutomataMusic.UI
 			// Fixed slot layout so typography stays rock-solid
 			float slotWidth = 33f;
 			float slotsTotalW = slotWidth * 8f;
-			Vector2 kataSize = fontMouse.MeasureString(displayKatakana) * katakanaScale;
+			// Panel size must not depend on the current text: measure the widest of both variants
+			bool cjk = MenuLyrics.CheckCjkSupport(fontMouse);
+			float kataW = Math.Max(
+				fontMouse.MeasureString(cjk ? " / オートマタ" : " / Automata").X,
+				fontMouse.MeasureString(cjk ? " / テラリア" : " / Terraria").X) * katakanaScale;
 			Vector2 subSize = fontMouse.MeasureString(subTitle) * subScale;
 
-			float totalTitleW = slotsTotalW + kataSize.X + 12f;
+			float totalTitleW = slotsTotalW + kataW + 12f;
 			float cardW = Math.Max(totalTitleW, subSize.X) + 84f;
 			float cardH = 88f;
 
@@ -439,7 +545,7 @@ namespace AutomataMusic.UI
 			Utils.DrawBorderString(sb, headerText, hdrPos, new Color(175, 168, 150) * 0.85f, hdrScale);
 
 			// 5. Main Title Letters & Katakana Sub-Logo
-			float textStartX = centerX - totalTitleW / 2f;
+			float textStartX = centerX - totalTitleW / 2f + glitchShake;
 			Color mainTitleCol = new Color(248, 242, 222);
 			Color ghostCol = new Color(176, 168, 148);
 
@@ -489,8 +595,25 @@ namespace AutomataMusic.UI
 				sb.DrawString(fontMouse, displayKatakana, kataGhostPos, ghostCol * (ghostAlpha * 0.70f), 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
 			}
 
+			if (glitchChroma > 0.4f)
+			{
+				sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(-glitchChroma * 0.6f, 0f), new Color(235, 95, 85) * 0.5f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
+				sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(glitchChroma * 0.6f, 0f), new Color(110, 225, 235) * 0.5f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
+			}
+
 			sb.DrawString(fontMouse, displayKatakana, kataPos + new Vector2(1, 1), Color.Black * 0.70f, 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
 			sb.DrawString(fontMouse, displayKatakana, kataPos, new Color(212, 198, 168), 0f, Vector2.Zero, katakanaScale, SpriteEffects.None, 0f);
+
+			// Horizontal tear lines, kept inside the title card
+			for (int i = 0; i < tearCount; i++)
+			{
+				TearLine tl = tearLines[i];
+				int tw = (int)(totalTitleW * tl.WFrac);
+				int tx = (int)(textStartX + totalTitleW * tl.XFrac);
+				int ty = (int)(titleY + 6f + tl.RelY);
+				sb.Draw(pixel, new Rectangle(tx, ty, tw, tl.H), new Color(245, 240, 225) * tl.Alpha);
+				sb.Draw(pixel, new Rectangle(tx + tw / 3, ty + tl.H, tw / 2, 1), new Color(12, 13, 17) * (tl.Alpha * 0.9f));
+			}
 
 			// Center razor slice line across the title (Slide 0 & 3 in reference video)
 			if (sliceLineAlpha > 0f)

@@ -1679,6 +1679,16 @@ namespace AutomataMusic.UI
 			sb.Draw(bunker, center, null, bunkerColor, rotation, origin, scale, SpriteEffects.None, 0f);
 		}
 
+		// Smooth, organic flicker in [0,1]: several incommensurate sines plus a rare "surge".
+		private static float SunFlicker(float t, float seed)
+		{
+			float f = (float)(Math.Sin(t * 1.7 + seed) * 0.40
+				+ Math.Sin(t * 3.9 + seed * 2.3) * 0.28
+				+ Math.Sin(t * 8.3 + seed * 0.7) * 0.20
+				+ Math.Sin(t * 17.1 + seed * 1.9) * 0.12);
+			return f * 0.5f + 0.5f;
+		}
+
 		private static void DrawSun(SpriteBatch sb, int w, int h)
 		{
 			if (cachedW <= 0)
@@ -1686,22 +1696,54 @@ namespace AutomataMusic.UI
 
 			float sxp = w * 0.10f;
 			Vector2 sun = new Vector2(sxp, HorizonY(sxp) - h * 0.004f);
-			float pulse = 1f + 0.035f * (float)Math.Sin(totalTime * 1.3f);
 			float fade = 0.35f + 0.65f * planetFade;
+
+			// Flicker channels: slow breathing, medium shimmer, and fast sparkle (atmospheric scintillation)
+			float slow = SunFlicker(totalTime * 0.55f, 0.4f);
+			float mid = SunFlicker(totalTime * 1.4f, 2.1f);
+			float fast = SunFlicker(totalTime * 3.2f, 5.7f);
+			float surge = (float)Math.Pow(Math.Max(0f, Math.Sin(totalTime * 0.37) * Math.Sin(totalTime * 0.91 + 1.3)), 3.0);
+
+			float pulse = 1f + 0.05f * (slow - 0.5f) * 2f + 0.025f * (mid - 0.5f) * 2f;
+			float coreBright = 0.82f + 0.18f * mid + 0.10f * fast + 0.12f * surge;
+			float haloBright = 0.85f + 0.30f * (slow - 0.5f) + 0.15f * surge;
 
 			// Tangent of the horizon at the sun (so the atmospheric flare hugs the curve)
 			Vector2 radial = sun - new Vector2(gCx, gCy);
 			float tangentAngle = (float)Math.Atan2(radial.X, -radial.Y);
 
-			DrawGlow(sb, sun, h * 0.60f * pulse, h * 0.60f * pulse, new Color(255, 150, 80, 0) * (0.14f * fade));
-			DrawGlow(sb, sun, w * 0.55f, h * 0.045f, new Color(110, 165, 255, 0) * (0.30f * fade), tangentAngle);
-			DrawGlow(sb, sun, w * 0.30f, h * 0.014f, new Color(255, 175, 95, 0) * (0.65f * fade), tangentAngle);
-			DrawGlow(sb, sun, h * 0.17f * pulse, h * 0.17f * pulse, new Color(255, 205, 160, 0) * (0.42f * fade));
-			DrawGlow(sb, sun, w * 0.75f, h * 0.0035f, new Color(170, 200, 255, 0) * (0.40f * fade));
-			DrawGlow(sb, sun, h * 0.035f, h * 0.035f, new Color(255, 248, 235, 0) * fade);
-			DrawGlow(sb, sun, h * 0.013f, h * 0.013f, new Color(255, 255, 255, 0) * fade);
+			// Heat-haze: the horizon flare wobbles in length and thickness
+			float haze = 1f + 0.06f * (float)Math.Sin(totalTime * 2.3) + 0.04f * (fast - 0.5f);
 
-			// Lens-flare ghosts along the sun → screen-centre axis
+			// Wide warm bloom
+			DrawGlow(sb, sun, h * 0.60f * pulse, h * 0.60f * pulse, new Color(255, 150, 80, 0) * (0.14f * fade * haloBright));
+			// Blue Rayleigh streak and warm streak along the limb
+			DrawGlow(sb, sun, w * 0.55f * haze, h * 0.045f * (0.9f + 0.2f * mid), new Color(110, 165, 255, 0) * (0.30f * fade * haloBright), tangentAngle);
+			DrawGlow(sb, sun, w * 0.30f * haze, h * 0.014f * (0.85f + 0.3f * fast), new Color(255, 175, 95, 0) * (0.65f * fade * coreBright), tangentAngle);
+			// Mid halo
+			DrawGlow(sb, sun, h * 0.17f * pulse, h * 0.17f * pulse, new Color(255, 205, 160, 0) * (0.42f * fade * haloBright));
+
+			// Corona rays: thin spikes that individually shimmer and slowly rotate
+			const int RayCount = 10;
+			for (int i = 0; i < RayCount; i++)
+			{
+				float ang = totalTime * 0.03f + i * (MathHelper.Pi / RayCount) + (i % 2) * 0.11f;
+				float rf = SunFlicker(totalTime * (1.1f + i * 0.17f), i * 1.37f);
+				float len = h * (0.22f + 0.16f * ((i * 7) % 5) / 4f) * (0.80f + 0.35f * rf);
+				float a = (0.050f + 0.060f * rf) * fade * (0.8f + 0.4f * surge);
+				DrawGlow(sb, sun, len, h * 0.0022f, new Color(255, 225, 185, 0) * a, ang);
+			}
+
+			// Long horizontal anamorphic streak, shimmering
+			DrawGlow(sb, sun, w * 0.75f * haze, h * 0.0035f, new Color(170, 200, 255, 0) * (0.40f * fade * (0.75f + 0.5f * fast)));
+
+			// Hot core: bright disc that flickers, with a slightly offset sparkle that jitters
+			DrawGlow(sb, sun, h * 0.035f * pulse, h * 0.035f * pulse, new Color(255, 248, 235, 0) * (fade * coreBright));
+			Vector2 jitter = new Vector2((fast - 0.5f) * 2.5f, (mid - 0.5f) * 1.5f);
+			DrawGlow(sb, sun + jitter, h * 0.020f, h * 0.020f, new Color(255, 240, 215, 0) * (0.35f * fade * fast));
+			DrawGlow(sb, sun, h * 0.013f * (0.95f + 0.1f * fast), h * 0.013f * (0.95f + 0.1f * fast), new Color(255, 255, 255, 0) * fade);
+
+			// Lens-flare ghosts along the sun -> screen-centre axis; each flickers out of phase
 			Vector2 axis = new Vector2(w * 0.5f, h * 0.5f) - sun;
 			float[] dist = { 0.45f, 0.80f, 1.25f, 1.60f, 1.95f };
 			float[] rad = { 0.020f, 0.045f, 0.016f, 0.075f, 0.030f };
@@ -1713,7 +1755,8 @@ namespace AutomataMusic.UI
 			for (int i = 0; i < dist.Length; i++)
 			{
 				float r = h * rad[i];
-				DrawGlow(sb, sun + axis * dist[i], r, r, cols[i] * (0.07f * fade));
+				float gf = 0.70f + 0.55f * SunFlicker(totalTime * 2.0f, 3f + i * 1.9f);
+				DrawGlow(sb, sun + axis * dist[i], r, r, cols[i] * (0.07f * fade * gf * coreBright));
 			}
 		}
 

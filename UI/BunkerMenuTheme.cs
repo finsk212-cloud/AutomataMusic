@@ -212,13 +212,13 @@ namespace AutomataMusic.UI
 			if (inten <= 0f)
 				return;
 
-			glitchChroma = inten * (2.5f + 2.5f * (float)Math.Abs(Math.Sin(time * 38f)));
-			glitchShake = (float)Math.Sin(time * 61f) * inten * 2.5f;
+			glitchChroma = inten * (3f + 3.5f * (float)Math.Abs(Math.Sin(time * 38f)));
+			glitchShake = (float)Math.Sin(time * 61f) * inten * 3.5f;
 
 			ghostAlpha = Math.Max(ghostAlpha, 0.22f * inten);
 			sliceLineAlpha = Math.Max(sliceLineAlpha, r.NextDouble() < 0.5 ? 0.5f * inten : 0f);
 
-			tearCount = 1 + (int)(inten * 1.6f * r.NextDouble());
+			tearCount = 1 + (int)(inten * 2.5f * r.NextDouble());
 			for (int i = 0; i < tearCount; i++)
 			{
 				tearLines[i] = new TearLine
@@ -232,7 +232,7 @@ namespace AutomataMusic.UI
 			}
 
 			// Extra data blocks
-			int extra = 1 + (int)(inten * 4f);
+			int extra = 2 + (int)(inten * 4f);
 			for (int b = 0; b < extra; b++)
 			{
 				glitchBlocks.Add(new GlitchBlock
@@ -240,8 +240,8 @@ namespace AutomataMusic.UI
 					Slot = r.Next(8),
 					RelX = (float)(r.NextDouble() * 26.0 - 4.0),
 					RelY = (float)(r.NextDouble() * 28.0),
-					Width = r.Next(5, 26),
-					Height = r.Next(2, 7),
+					Width = r.Next(6, 18),
+					Height = r.Next(3, 8),
 					Alpha = 0.7f + (float)r.NextDouble() * 0.3f
 				});
 			}
@@ -251,12 +251,12 @@ namespace AutomataMusic.UI
 				// Unstable signal: letters randomly flick to glyphs and jump sideways
 				for (int i = 0; i < 8; i++)
 				{
-					if (r.NextDouble() < 0.06 * inten)
+					if (r.NextDouble() < 0.14 * inten)
 					{
 						displayLetters[i] = GlitchGlyphs[r.Next(GlitchGlyphs.Length)].ToString();
 						slotJitterX[i] += (float)(r.NextDouble() * 4.0 - 2.0);
 					}
-					else if (r.NextDouble() < 0.14 * inten)
+					else if (r.NextDouble() < 0.24 * inten)
 					{
 						slotJitterX[i] += (float)(r.NextDouble() * 6.0 - 3.0) * inten;
 					}
@@ -570,6 +570,25 @@ namespace AutomataMusic.UI
 
 				// Main letter glyph
 				sb.DrawString(fontDeath, letter, charPos, mainTitleCol, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
+			}
+
+			// Button-style data blocks: alternating bright blocks and card-colour cutouts, clamped to the letter bodies
+			for (int b = 0; b < glitchBlocks.Count; b++)
+			{
+				var gb = glitchBlocks[b];
+				if (gb.Slot < 0 || gb.Slot >= 8)
+					continue;
+
+				float slotX = textStartX + gb.Slot * slotWidth + jitterX[gb.Slot];
+				int x0 = (int)Math.Max(slotX + gb.RelX, slotX + 4f);
+				int x1 = (int)Math.Min(slotX + gb.RelX + gb.Width, slotX + slotWidth - 4f);
+				int y0 = (int)Math.Max(titleY + 6f + gb.RelY, titleY + 11f);
+				int y1 = (int)Math.Min(titleY + 6f + gb.RelY + gb.Height, titleY + 37f);
+				if (x1 <= x0 || y1 <= y0)
+					continue;
+
+				Color blockCol = (b % 2 == 0) ? Color.White * gb.Alpha : new Color(12, 13, 17) * 0.95f;
+				sb.Draw(pixel, new Rectangle(x0, y0, x1 - x0, y1 - y0), blockCol);
 			}
 
 			// Katakana subtitle (drawn to the right of the 8 letters)

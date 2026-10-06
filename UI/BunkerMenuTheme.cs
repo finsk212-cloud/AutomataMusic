@@ -190,21 +190,21 @@ namespace AutomataMusic.UI
 			GetTitleGlitchStateCore(timer, time, out displayLetters, out katakanaRaw, out ghostAlpha, out sliceLineAlpha, out glitchBlocks, out slotJitterX, out slotJitterY);
 
 			float inten;
-			bool macro = timer >= 3.0f && timer < 6.1f;
-			if (timer < 3.0f) inten = 0f;
-			else if (timer < 3.2f) inten = 0.55f;        // signal starts to destabilise
-			else if (timer < 4.2f) inten = 1f;
-			else if (timer < 5.2f) inten = 0.15f;
-			else if (timer < 5.7f) inten = 1f;
-			else if (timer < 6.1f) inten = 0.45f * (1f - (timer - 5.7f) / 0.4f);
+			bool macro = timer >= 3.05f && timer < 5.3f;
+			if (timer < 3.05f) inten = 0f;
+			else if (timer < 3.2f) inten = 0.5f;        // signal starts to destabilise
+			else if (timer < 3.65f) inten = 1f;
+			else if (timer < 4.65f) inten = 0.12f;
+			else if (timer < 5.0f) inten = 1f;
+			else if (timer < 5.3f) inten = 0.4f * (1f - (timer - 5.0f) / 0.3f);
 			else inten = 0f;
 
-			int frame = (int)(time * 24f);
+			int frame = (int)(time * 30f);
 			Random r = new Random(frame * 7919 + 13);
 
 			// Short random blips while the title is otherwise stable
-			if (inten < 0.2f && new Random((frame / 2) * 104729 + 7).Next(34) == 0)
-				inten = Math.Max(inten, 0.5f);
+			if (inten < 0.2f && new Random((frame / 3) * 104729 + 7).Next(40) == 0)
+				inten = Math.Max(inten, 0.4f);
 
 			tearCount = 0;
 			glitchChroma = 0f;
@@ -212,14 +212,13 @@ namespace AutomataMusic.UI
 			if (inten <= 0f)
 				return;
 
-			glitchChroma = inten * (1.5f + (float)r.NextDouble() * 5.5f);
-			if (r.NextDouble() < 0.55)
-				glitchShake = ((float)r.NextDouble() - 0.5f) * 2f * inten * 5f;
+			glitchChroma = inten * (2.5f + 2.5f * (float)Math.Abs(Math.Sin(time * 38f)));
+			glitchShake = (float)Math.Sin(time * 61f) * inten * 2.5f;
 
 			ghostAlpha = Math.Max(ghostAlpha, 0.22f * inten);
 			sliceLineAlpha = Math.Max(sliceLineAlpha, r.NextDouble() < 0.5 ? 0.5f * inten : 0f);
 
-			tearCount = 1 + (int)(inten * 3f * r.NextDouble());
+			tearCount = 1 + (int)(inten * 1.6f * r.NextDouble());
 			for (int i = 0; i < tearCount; i++)
 			{
 				tearLines[i] = new TearLine
@@ -252,14 +251,14 @@ namespace AutomataMusic.UI
 				// Unstable signal: letters randomly flick to glyphs and jump sideways
 				for (int i = 0; i < 8; i++)
 				{
-					if (r.NextDouble() < 0.10 * inten)
+					if (r.NextDouble() < 0.06 * inten)
 					{
 						displayLetters[i] = GlitchGlyphs[r.Next(GlitchGlyphs.Length)].ToString();
 						slotJitterX[i] += (float)(r.NextDouble() * 4.0 - 2.0);
 					}
-					else if (r.NextDouble() < 0.22 * inten)
+					else if (r.NextDouble() < 0.14 * inten)
 					{
-						slotJitterX[i] += (float)(r.NextDouble() * 10.0 - 5.0) * inten;
+						slotJitterX[i] += (float)(r.NextDouble() * 6.0 - 3.0) * inten;
 					}
 					if (r.NextDouble() < 0.08 * inten)
 						slotJitterY[i] += (float)(r.NextDouble() * 4.0 - 2.0);
@@ -295,9 +294,9 @@ namespace AutomataMusic.UI
 			}
 
 			// Phase 1: Progressive NieR digital decode transition into Automata (3.2s -> 4.2s, 1.0s duration)
-			if (timer < 4.2f)
+			if (timer < 3.65f)
 			{
-				float prog = (timer - 3.2f) / 1.0f; // 0.0 -> 1.0
+				float prog = (timer - 3.2f) / 0.45f; // 0.0 -> 1.0
 				int switchedCount = (int)(prog * 8f);
 				ghostAlpha = 0.45f * ((float)Math.Sin(time * 45f) * 0.3f + 0.7f);
 				sliceLineAlpha = 0.65f * ((float)Math.Sin(time * 65f) * 0.4f + 0.6f);
@@ -349,7 +348,7 @@ namespace AutomataMusic.UI
 			}
 
 			// Phase 2: Full Hold on "A U T O M A T A" for 1.0 full second (4.2s -> 5.2s)
-			if (timer < 5.2f)
+			if (timer < 4.65f)
 			{
 				for (int i = 0; i < 8; i++)
 					displayLetters[i] = AutomataLetters[i];
@@ -405,9 +404,9 @@ namespace AutomataMusic.UI
 			}
 
 			// Phase 3: Glitch / digital decode back to "T E R R A R I A" (5.2s -> 5.7s, 0.5s duration)
-			if (timer < 5.7f)
+			if (timer < 5.0f)
 			{
-				float prog = (timer - 5.2f) / 0.5f; // 0.0 -> 1.0
+				float prog = (timer - 4.65f) / 0.35f; // 0.0 -> 1.0
 				int revertedCount = (int)(prog * 8f);
 				ghostAlpha = 0.40f * ((float)Math.Sin(time * 50f) * 0.3f + 0.7f);
 				sliceLineAlpha = 0.70f * ((float)Math.Sin(time * 70f) * 0.4f + 0.6f);
@@ -573,19 +572,6 @@ namespace AutomataMusic.UI
 				sb.DrawString(fontDeath, letter, charPos, mainTitleCol, 0f, Vector2.Zero, titleScale, SpriteEffects.None, 0f);
 			}
 
-			// Draw NieR solid white data block glitch artifacts (Slide 1, 3, 7 in reference video)
-			for (int b = 0; b < glitchBlocks.Count; b++)
-			{
-				var gb = glitchBlocks[b];
-				if (gb.Slot >= 0 && gb.Slot < 8)
-				{
-					float slotX = textStartX + gb.Slot * slotWidth;
-					int bx = (int)(slotX + gb.RelX + jitterX[gb.Slot]);
-					int by = (int)(titleY + 6f + gb.RelY + jitterY[gb.Slot]);
-					sb.Draw(pixel, new Rectangle(bx, by, gb.Width, gb.Height), Color.White * gb.Alpha);
-				}
-			}
-
 			// Katakana subtitle (drawn to the right of the 8 letters)
 			Vector2 kataPos = new Vector2(textStartX + slotsTotalW + 10f, titleY + 18f);
 
@@ -628,14 +614,6 @@ namespace AutomataMusic.UI
 			int divY = (int)(titleY + 48f);
 			int divW = cardRect.Width - 32;
 			int divX = cardRect.X + 16;
-			Color divColor = new Color(210, 200, 175) * 0.50f;
-
-			sb.Draw(pixel, new Rectangle(divX, divY, divW, 1), divColor);
-			sb.Draw(pixel, new Rectangle(cardRect.Center.X - 3, divY - 2, 6, 5), new Color(245, 235, 205) * 0.80f);
-			sb.Draw(pixel, new Rectangle(divX, divY - 2, 2, 5), divColor);
-			sb.Draw(pixel, new Rectangle(divX + divW - 2, divY - 2, 2, 5), divColor);
-			sb.Draw(pixel, new Rectangle(divX + (int)(divW * 0.25f), divY - 1, 2, 3), divColor * 0.7f);
-			sb.Draw(pixel, new Rectangle(divX + (int)(divW * 0.75f), divY - 1, 2, 3), divColor * 0.7f);
 
 			// 7. Subtitle line (For the Glory of Mankind)
 			Vector2 subPos = new Vector2(centerX - subSize.X / 2f, divY + 6f);

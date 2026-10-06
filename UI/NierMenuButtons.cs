@@ -176,6 +176,21 @@ namespace AutomataMusic.UI
 					hoverTimer += 0.01667f;
 				}
 
+				// Click: restart the glitch burst on the frame the mouse goes down over a hovered button
+				if (Main.mouseLeft && Main.mouseLeftRelease)
+					clickStamp = clickClock.Elapsed.TotalSeconds;
+				double clickAge = clickClock.Elapsed.TotalSeconds - clickStamp;
+				bool clicking = clickAge < ClickGlitchTime;
+				float clickK = clicking ? 1f - (float)(clickAge / ClickGlitchTime) : 0f;
+				bool invert = clicking && (clickAge < 0.06 || (clickAge > 0.13 && clickAge < 0.17));
+				float shake = 0f;
+				if (clicking)
+				{
+					Random sr = new Random((int)(clickAge * 40.0) * 7717 + 3);
+					shake = ((float)sr.NextDouble() * 2f - 1f) * 4f * clickK;
+				}
+				textPos.X += shake;
+
 				// Spacious, comfortable YoRHa selection banner (34px tall, generous breathing room)
 				float bannerW = Math.Max(280f, textSize.X + 68f);
 				float bannerH = 34f;

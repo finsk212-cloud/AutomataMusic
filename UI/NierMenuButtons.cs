@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -18,6 +19,9 @@ namespace AutomataMusic.UI
 		private static bool hooksRegistered = false;
 		private static string currentHoveredText = "";
 		private static float hoverTimer = 0f;
+		private static readonly Stopwatch clickClock = Stopwatch.StartNew();
+		private static double clickStamp = -10.0;
+		private const double ClickGlitchTime = 0.35;
 
 		public static void Load()
 		{
@@ -175,12 +179,12 @@ namespace AutomataMusic.UI
 				// Spacious, comfortable YoRHa selection banner (34px tall, generous breathing room)
 				float bannerW = Math.Max(280f, textSize.X + 68f);
 				float bannerH = 34f;
-				float bannerX = (float)Math.Round(centerX - bannerW / 2f);
+				float bannerX = (float)Math.Round(centerX - bannerW / 2f + shake);
 				float bannerY = (float)Math.Round(centerY - bannerH / 2f);
 				Rectangle bannerRect = new Rectangle((int)bannerX, (int)bannerY, (int)bannerW, (int)bannerH);
 
 				// 1. Solid YoRHa bone-ivory highlight banner (#EAE5D4)
-				Color bannerBg = new Color(234, 229, 212);
+				Color bannerBg = invert ? new Color(22, 24, 28) : new Color(234, 229, 212);
 				sb.Draw(pixel, bannerRect, bannerBg);
 
 				// 2. Dark charcoal top & bottom borders (#202226)
@@ -208,14 +212,14 @@ namespace AutomataMusic.UI
 				// 6. NieR Digital Decode Glitch Effect on Hover
 				// Initial 0.55s burst upon hover, and a periodic subtle 0.35s twitch every 3.5s
 				float cycle = hoverTimer % 3.5f;
-				bool isGlitching = cycle < 0.55f;
+				bool isGlitching = cycle < 0.55f || clicking;
 
-				Color textDark = new Color(22, 24, 28);
+				Color textDark = invert ? new Color(234, 229, 212) : new Color(22, 24, 28);
 				int len = upperText.Length;
 
 				if (isGlitching && len > 0)
 				{
-					int seed = (int)(Main.timeForVisualEffects * 0.6f) + len * 7;
+					int seed = (int)(Main.timeForVisualEffects * 0.6f) + len * 7 + (clicking ? (int)(clickAge * 40.0) * 131 : 0);
 					Random rand = new Random(seed);
 
 					// Pre-calculate per-character X offsets
@@ -227,6 +231,14 @@ namespace AutomataMusic.UI
 
 					// Ghost duplicate underneath (NieR CRT scan artifact)
 					DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, textPos + new Vector2(0f, 3f), textDark * 0.25f, 0f, Vector2.Zero, drawScale, SpriteEffects.None, 0f);
+
+					// Click: chromatic split of the whole label
+					if (clicking)
+					{
+						float split = 1.5f + 4f * clickK;
+						DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, textPos + new Vector2(-split, 0f), new Color(215, 85, 75) * 0.55f, 0f, Vector2.Zero, drawScale, SpriteEffects.None, 0f);
+						DynamicSpriteFontExtensionMethods.DrawString(sb, font, upperText, textPos + new Vector2(split, 0f), new Color(60, 170, 185) * 0.55f, 0f, Vector2.Zero, drawScale, SpriteEffects.None, 0f);
+					}
 
 					// Pick 1-2 slots to glitch into decode glyphs
 					int glitchSlot1 = rand.Next(len);
@@ -240,7 +252,7 @@ namespace AutomataMusic.UI
 						float jx = 0f;
 						float jy = 0f;
 
-						if (i == glitchSlot1 || i == glitchSlot2)
+						if (i == glitchSlot1 || i == glitchSlot2 || (clicking && rand.NextDouble() < 0.35))
 						{
 							ch = glitchGlyphs[rand.Next(glitchGlyphs.Length)].ToString();
 							jx = (float)(rand.NextDouble() * 3.0 - 1.5);
@@ -252,7 +264,7 @@ namespace AutomataMusic.UI
 					}
 
 					// Rectangular data blocks on letters (the authentic boxes from title card / video)
-					int numBlocks = rand.Next(3, 7);
+					int numBlocks = clicking ? rand.Next(6, 11) : rand.Next(3, 7);
 					for (int b = 0; b < numBlocks; b++)
 					{
 						int targetSlot = rand.Next(len);

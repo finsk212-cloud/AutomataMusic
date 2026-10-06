@@ -154,6 +154,9 @@ namespace AutomataMusic.UI
 			// 3. Stars
 			DrawStars(sb, pixel, w, h, dt);
 
+			// 3.5 Far-away drifting lights
+			DrawDistantLights(sb, pixel, w, h, dt);
+
 			// 4. Moon (the Human Council's server lives up there...)
 			DrawMoon(sb, w, h);
 
@@ -190,6 +193,8 @@ namespace AutomataMusic.UI
 			glowTex = gradientTex = nebulaTex = moonTex = planetTex = emilTex = flightUnitTex = podTex = null;
 			bunkerTexture = null;
 			egg = default;
+			Array.Clear(farLights, 0, farLights.Length);
+			farLightTimer = 1.0f;
 			eggSpawnTimer = 3.5f;
 			texturesBuilt = false;
 			cachedW = cachedH = -1;
@@ -952,6 +957,93 @@ namespace AutomataMusic.UI
 		// ═════════════════════════════════════════════════════════════
 		//  Sky elements
 		// ═════════════════════════════════════════════════════════════
+
+		// ───────────────────────── Distant drifting lights ─────────────────────────
+		private struct FarLight
+		{
+			public bool Active;
+			public Vector2 Pos, Vel;   // pixels, pixels/second
+			public float Life, MaxLife, Size, Phase;
+			public Color Col;
+		}
+
+		private const int MaxFarLights = 5;
+		private static readonly FarLight[] farLights = new FarLight[MaxFarLights];
+		private static float farLightTimer = 1.0f;
+
+		private static void DrawDistantLights(SpriteBatch sb, Texture2D pixel, int w, int h, float dt)
+		{
+			if (cachedW <= 0)
+				return;
+
+			farLightTimer -= dt;
+			if (farLightTimer <= 0f)
+			{
+				farLightTimer = 2.5f + (float)fxRand.NextDouble() * 4f;
+				for (int i = 0; i < MaxFarLights; i++)
+				{
+					if (farLights[i].Active)
+						continue;
+
+					bool ltr = fxRand.NextDouble() < 0.5;
+					float speed = w * (0.010f + (float)fxRand.NextDouble() * 0.014f); // very slow: crosses in ~40-100s
+					float y = h * (0.05f + (float)fxRand.NextDouble() * 0.40f);
+					float vy = (float)(fxRand.NextDouble() - 0.5) * speed * 0.15f;
+					float startX = ltr ? -10f : w + 10f;
+					float life = (w + 20f) / speed;
+					Color col = fxRand.Next(3) switch
+					{
+						0 => new Color(255, 245, 220),
+						1 => new Color(190, 225, 255),
+						_ => new Color(255, 215, 170)
+					};
+					farLights[i] = new FarLight
+					{
+						Active = true,
+						Pos = new Vector2(startX, y),
+						Vel = new Vector2(ltr ? speed : -speed, vy),
+						Life = life,
+						MaxLife = life,
+						Size = 1f + (float)fxRand.NextDouble() * 0.8f,
+						Phase = (float)(fxRand.NextDouble() * MathHelper.TwoPi),
+						Col = col
+					};
+					break;
+				}
+			}
+
+			Rectangle src = new Rectangle(0, 0, 1, 1);
+			for (int i = 0; i < MaxFarLights; i++)
+			{
+				if (!farLights[i].Active)
+					continue;
+
+				ref FarLight l = ref farLights[i];
+				l.Life -= dt;
+				l.Pos += l.Vel * dt;
+				if (l.Life <= 0f || l.Pos.Y > HorizonY(l.Pos.X) - 6f)
+				{
+					l.Active = false;
+					continue;
+				}
+
+				float age = 1f - l.Life / l.MaxLife;
+				float edge = Math.Min(SS(0f, 0.06f, age), SS(0f, 0.06f, 1f - age));
+				float blink = 0.75f + 0.25f * (float)Math.Sin(totalTime * 2.2f + l.Phase);
+				float a = edge * blink;
+
+				// Soft glow + tiny bright core + faint fading trail behind
+				DrawGlow(sb, l.Pos, 7f * l.Size, 7f * l.Size, new Color(l.Col.R, l.Col.G, l.Col.B, 0) * (0.35f * a));
+				Vector2 dir = Vector2.Normalize(l.Vel);
+				for (int t = 1; t <= 6; t++)
+				{
+					Vector2 tp = l.Pos - dir * (t * 3.5f);
+					sb.Draw(pixel, new Rectangle((int)tp.X, (int)tp.Y, 1, 1), src, l.Col * (a * 0.30f * (1f - t / 7f)));
+				}
+				int core = l.Size > 1.5f ? 2 : 1;
+				sb.Draw(pixel, new Rectangle((int)l.Pos.X, (int)l.Pos.Y, core, core), src, Color.White * a);
+			}
+		}
 
 		private static void DrawStars(SpriteBatch sb, Texture2D pixel, int w, int h, float dt)
 		{

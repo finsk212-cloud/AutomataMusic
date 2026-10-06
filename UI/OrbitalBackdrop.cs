@@ -197,6 +197,7 @@ namespace AutomataMusic.UI
 			Array.Clear(embers, 0, embers.Length);
 			shootLife = 0f;
 			flashLife = 0f;
+			trailHist.Clear();
 			farLightTimer = 1.0f;
 			eggSpawnTimer = 3.5f;
 			texturesBuilt = false;
@@ -1157,39 +1158,71 @@ namespace AutomataMusic.UI
 			return Color.Lerp(new Color(255, 120, 45, 0), new Color(170, 38, 18, 0), (k - 0.66f) / 0.34f);
 		}
 
-		private static void DrawAtmosphericTrail(SpriteBatch sb, Texture2D pixel, Vector2 headPos, Vector2 dirN, float angle, float fade, float lengthPx, float s)
+		private static readonly List<Vector2> trailHist = new List<Vector2>();
+
+		// Walks back along the recorded flight path, returning points spaced `step` px apart (arc length)
+		private static int SampleTrail(Vector2 head, float step, Vector2[] outPts)
+		{
+			outPts[0] = head;
+			int n = 1;
+			Vector2 cur = head;
+			float need = step;
+			for (int i = 0; i < trailHist.Count && n < outPts.Length; i++)
+			{
+				Vector2 nxt = trailHist[i];
+				float seg = Vector2.Distance(cur, nxt);
+				while (seg >= need && n < outPts.Length)
+				{
+					cur = Vector2.Lerp(cur, nxt, need / seg);
+					outPts[n++] = cur;
+					seg = Vector2.Distance(cur, nxt);
+					need = step;
+				}
+				need -= seg;
+				cur = nxt;
+			}
+			return n;
+		}
+
+		private static readonly Vector2[] trailPts = new Vector2[64];
+
+		private static void DrawAtmosphericTrail(SpriteBatch sb, Texture2D pixel, Vector2 headPos, Vector2 dirN, float fade, float lengthPx, float s)
 		{
 			if (fade <= 0f || lengthPx <= 2f) return;
 
-			Rectangle src = new Rectangle(0, 0, 1, 1);
-			Vector2 perp = new Vector2(-dirN.Y, dirN.X);
+			const int steps = 48;
+			int n = SampleTrail(headPos, lengthPx / steps, trailPts);
+			if (n < 3) return;
 
-			// 1. Wide shock-heated air sheath: hot yellow at the head cooling to dull red
-			const int glowSteps = 14;
-			for (int g = 0; g < glowSteps; g++)
+			Rectangle src = new Rectangle(0, 0, 1, 1);
+
+			// 1. Wide shock-heated air sheath following the curved path: hot yellow cooling to dull red
+			for (int k = 0; k < n; k += 3)
 			{
-				float u = g / (float)glowSteps;
-				Vector2 gp = headPos - dirN * (u * lengthPx);
+				float u = k / (float)steps;
 				float frac = 1f - u;
-				float rx = 30f * s * (float)Math.Pow(frac, 0.7);
-				float ry = 13f * s * (float)Math.Pow(frac, 0.8);
-				float alpha = fade * (float)Math.Pow(frac, 1.3) * 0.40f;
-				DrawGlow(sb, gp, rx, ry, HeatColor(u * 0.9f) * alpha, angle);
+				Vector2 d = trailPts[Math.Max(0, k - 1)] - trailPts[Math.Min(n - 1, k + 1)];
+				float ang = d.LengthSquared() > 0.001f ? (float)Math.Atan2(d.Y, d.X) : 0f;
+				float rx = 34f * s * (float)Math.Pow(frac, 0.7);
+				float ry = 14f * s * (float)Math.Pow(frac, 0.8);
+				DrawGlow(sb, trailPts[k], rx, ry, HeatColor(u * 0.9f) * (fade * (float)Math.Pow(frac, 1.3) * 0.40f), ang);
 			}
 
-			// 2. Turbulent incandescent core wake, wavering sideways as the air tears
-			const int beamSteps = 34;
-			float stepLen = lengthPx / beamSteps;
-			for (int k = 0; k < beamSteps; k++)
+			// 2. Turbulent incandescent core wake; wavers sideways as the air tears
+			for (int k = 0; k < n - 1; k++)
 			{
-				float u = k / (float)beamSteps;
+				float u = k / (float)steps;
 				float frac = 1f - u;
-				float wob = (float)Math.Sin(k * 0.55f - totalTime * 17f) * 1.8f * s * u
-				          + (float)Math.Sin(k * 1.3f - totalTime * 29f) * 0.8f * s * u;
-				Vector2 p = headPos - dirN * (k * stepLen) + perp * wob;
-				float alpha = fade * (float)Math.Pow(frac, 1.25) * 0.85f;
+				Vector2 seg = trailPts[k] - trailPts[k + 1];
+				float len = seg.Length();
+				if (len < 0.01f) continue;
+				Vector2 dir = seg / len;
+				Vector2 perp = new Vector2(-dir.Y, dir.X);
+				float wob = ((float)Math.Sin(k * 0.55f - totalTime * 17f) * 1.8f + (float)Math.Sin(k * 1.3f - totalTime * 29f) * 0.8f) * s * u;
 				float thick = Math.Max(1f, 6f * s * (float)Math.Pow(frac, 0.8));
-				sb.Draw(pixel, p - perp * (thick * 0.5f), src, HeatColor(u) * alpha, angle, Vector2.Zero, new Vector2(stepLen + 1f, thick), SpriteEffects.None, 0f);
+				float ang = (float)Math.Atan2(-dir.Y, -dir.X);
+				Vector2 p0 = trailPts[k + 1] + perp * (wob - thick * 0.5f);
+				sb.Draw(pixel, p0, src, HeatColor(u) * (fade * (float)Math.Pow(frac, 1.25) * 0.85f), ang, Vector2.Zero, new Vector2(len + 1f, thick), SpriteEffects.None, 0f);
 			}
 		}
 
@@ -1273,8 +1306,14 @@ namespace AutomataMusic.UI
 				// Skims along the curve of the atmosphere, sinking gradually towards the surface
 				Vector2 prev = shootPos;
 				float x = shootPos.X + shootVx * dt;
-				float alt = shootAltEnd + (shootAltStart - shootAltEnd) * (1f - (float)Math.Pow(t, 1.7));
+				float alt = shootAltEnd + (shootAltStart - shootAltEnd) * (1f - (float)Math.Pow(t, 2.0));
 				shootPos = new Vector2(x, HorizonY(x) - alt);
+				if (trailHist.Count == 0 || Vector2.Distance(trailHist[0], shootPos) >= 3f * s)
+				{
+					trailHist.Insert(0, shootPos);
+					if (trailHist.Count > 400)
+						trailHist.RemoveAt(trailHist.Count - 1);
+				}
 				Vector2 delta = shootPos - prev;
 				Vector2 dirN = delta.LengthSquared() > 0.0001f ? Vector2.Normalize(delta) : new Vector2(Math.Sign(shootVx), 0f);
 				float angle = (float)Math.Atan2(dirN.Y, dirN.X);
@@ -1297,9 +1336,8 @@ namespace AutomataMusic.UI
 				float flicker = 0.80f + 0.40f * SunFlicker(totalTime * 5f, 9f) + 0.08f * (float)Math.Sin(totalTime * 41f);
 				float intensity = ramp * swell * burnOut;
 
-				// Never touch the surface
-				float surfaceBuffer = MathHelper.Clamp(((HorizonY(shootPos.X) - shootPos.Y) - 6f * s) / (20f * s), 0f, 1f);
-				intensity *= surfaceBuffer;
+				float surfaceBuffer = 1f;
+				float altNow = HorizonY(shootPos.X) - shootPos.Y;
 
 				float rockScale = 1.35f * (1f - SS(0.40f, 1f, p));
 				float rockAlpha = (1f - SS(0.80f, 1f, p)) * surfaceBuffer;
@@ -1310,7 +1348,7 @@ namespace AutomataMusic.UI
 					Vector2 hp = new Vector2(shootPos.X, HorizonY(shootPos.X));
 					Vector2 rad = hp - new Vector2(gCx, gCy);
 					float tan = (float)Math.Atan2(rad.X, -rad.Y);
-					DrawGlow(sb, hp, 190f * s, 16f * s, new Color(255, 135, 65, 0) * (0.20f * intensity * flicker), tan);
+					DrawGlow(sb, hp, 190f * s, 16f * s, new Color(255, 135, 65, 0) * (0.20f * intensity * flicker * SS(-0.04f * h, 0.03f * h, altNow)), tan);
 
 					// Heat-shedding embers
 					emberAcc += dt * 70f * intensity;
@@ -1331,7 +1369,7 @@ namespace AutomataMusic.UI
 							SpawnEmber(shootPos, dirN, s, 1.8f);
 					}
 
-					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, intensity * flicker, 320f * s * intensity, s);
+					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, intensity * flicker, 520f * s * intensity, s);
 
 					// Fireball: orange bloom, yellow body, white-hot core, blue-white bow shock ahead
 					float g = intensity * flicker;
@@ -1351,15 +1389,16 @@ namespace AutomataMusic.UI
 			{
 				shootTimer = 24f + (float)fxRand.NextDouble() * 24f;
 				// ~2.5s cold approach, then ~11s of sustained burning
-				shootMax = shootLife = 13f + (float)fxRand.NextDouble() * 2f;
+				shootMax = shootLife = 14f + (float)fxRand.NextDouble() * 2f;
 				fragTimer = 1.0f;
 
 				bool rightToLeft = fxRand.NextDouble() < 0.55;
 				float startX = rightToLeft ? w * (0.82f + (float)fxRand.NextDouble() * 0.04f) : w * (0.16f + (float)fxRand.NextDouble() * 0.04f);
 				shootVx = (rightToLeft ? -1f : 1f) * w * (0.044f + (float)fxRand.NextDouble() * 0.006f);
 				shootAltStart = h * (0.12f + (float)fxRand.NextDouble() * 0.03f);
-				shootAltEnd = h * 0.010f;
+				shootAltEnd = -h * 0.11f; // dives well into the planet
 				shootPos = new Vector2(startX, HorizonY(startX) - shootAltStart);
+				trailHist.Clear();
 			}
 		}
 

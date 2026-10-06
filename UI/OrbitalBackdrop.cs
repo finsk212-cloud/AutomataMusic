@@ -1212,9 +1212,9 @@ namespace AutomataMusic.UI
 
 				float fall = (float)Math.Pow(frac, 1.35f);
 				// Wide dim sheath, mid coloured body, thin white-hot core
-				DrawGlow(sb, p, 20f * s * (0.25f + 0.75f * frac), 20f * s * (0.25f + 0.75f * frac), HeatColor(u * 0.95f) * (fade * fall * 0.030f));
-				DrawGlow(sb, p, 8f * s * (0.30f + 0.70f * frac), 8f * s * (0.30f + 0.70f * frac), HeatColor(u * 0.8f) * (fade * fall * 0.075f));
-				DrawGlow(sb, p, 3.2f * s * (0.35f + 0.65f * frac), 3.2f * s * (0.35f + 0.65f * frac), HeatColor(u * 0.5f) * (fade * fall * 0.17f));
+				DrawGlow(sb, p, 30f * s * (0.25f + 0.75f * frac), 30f * s * (0.25f + 0.75f * frac), HeatColor(u * 0.95f) * (fade * fall * 0.050f));
+				DrawGlow(sb, p, 13f * s * (0.30f + 0.70f * frac), 13f * s * (0.30f + 0.70f * frac), HeatColor(u * 0.8f) * (fade * fall * 0.120f));
+				DrawGlow(sb, p, 5.5f * s * (0.35f + 0.65f * frac), 5.5f * s * (0.35f + 0.65f * frac), HeatColor(u * 0.5f) * (fade * fall * 0.260f));
 			}
 		}
 

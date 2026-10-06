@@ -157,9 +157,6 @@ namespace AutomataMusic.UI
 			// 4. Moon (the Human Council's server lives up there...)
 			DrawMoon(sb, w, h);
 
-			// 4.5 Distant deep-space object easter egg (Emil's Head / YoRHa Flight Unit / Pod 042)
-			DrawEasterEgg(sb, pixel, w, h, dt);
-
 			// 5. Planet
 			if (texturesBuilt)
 			{

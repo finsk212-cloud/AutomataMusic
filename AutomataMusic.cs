@@ -12,6 +12,10 @@ namespace AutomataMusic
 
 		public override void PostSetupContent()
 		{
+			// Client-only mod: never touch audio or menu code on a dedicated server
+			if (Main.dedServ)
+				return;
+
 			MusicHelper.PreWarmAll(this);
 
 			if (AutomataMusicConfig.Instance == null || AutomataMusicConfig.Instance.SetAsDefaultMenuTheme)
@@ -42,6 +46,9 @@ namespace AutomataMusic
 
 		public override void Load()
 		{
+			if (Main.dedServ)
+				return;
+
 			NierMenuButtons.Load();
 		}
 

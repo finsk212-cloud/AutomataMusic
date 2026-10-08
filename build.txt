@@ -5,3 +5,4 @@ homepage =
 hideCode = false
 hideResources = false
 includeSource = true
+side = Client

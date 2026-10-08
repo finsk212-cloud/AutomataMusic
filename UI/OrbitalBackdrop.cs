@@ -154,11 +154,11 @@ namespace AutomataMusic.UI
 			// 3. Stars
 			DrawStars(sb, pixel, w, h, dt);
 
+			// 3.5 Far-away drifting lights
+			DrawDistantLights(sb, pixel, w, h, dt);
+
 			// 4. Moon (the Human Council's server lives up there...)
 			DrawMoon(sb, w, h);
-
-			// 4.5 Distant deep-space object easter egg (Emil's Head / YoRHa Flight Unit / Pod 042)
-			DrawEasterEgg(sb, pixel, w, h, dt);
 
 			// 5. Planet
 			if (texturesBuilt)
@@ -193,6 +193,12 @@ namespace AutomataMusic.UI
 			glowTex = gradientTex = nebulaTex = moonTex = planetTex = emilTex = flightUnitTex = podTex = null;
 			bunkerTexture = null;
 			egg = default;
+			Array.Clear(farLights, 0, farLights.Length);
+			Array.Clear(embers, 0, embers.Length);
+			shootLife = 0f;
+			flashLife = 0f;
+			trailHist.Clear();
+			farLightTimer = 1.0f;
 			eggSpawnTimer = 3.5f;
 			texturesBuilt = false;
 			cachedW = cachedH = -1;
@@ -956,6 +962,93 @@ namespace AutomataMusic.UI
 		//  Sky elements
 		// ═════════════════════════════════════════════════════════════
 
+		// ───────────────────────── Distant drifting lights ─────────────────────────
+		private struct FarLight
+		{
+			public bool Active;
+			public Vector2 Pos, Vel;   // pixels, pixels/second
+			public float Life, MaxLife, Size, Phase;
+			public Color Col;
+		}
+
+		private const int MaxFarLights = 5;
+		private static readonly FarLight[] farLights = new FarLight[MaxFarLights];
+		private static float farLightTimer = 1.0f;
+
+		private static void DrawDistantLights(SpriteBatch sb, Texture2D pixel, int w, int h, float dt)
+		{
+			if (cachedW <= 0)
+				return;
+
+			farLightTimer -= dt;
+			if (farLightTimer <= 0f)
+			{
+				farLightTimer = 2.5f + (float)fxRand.NextDouble() * 4f;
+				for (int i = 0; i < MaxFarLights; i++)
+				{
+					if (farLights[i].Active)
+						continue;
+
+					bool ltr = fxRand.NextDouble() < 0.5;
+					float speed = w * (0.010f + (float)fxRand.NextDouble() * 0.014f); // very slow: crosses in ~40-100s
+					float y = h * (0.05f + (float)fxRand.NextDouble() * 0.40f);
+					float vy = (float)(fxRand.NextDouble() - 0.5) * speed * 0.15f;
+					float startX = ltr ? -10f : w + 10f;
+					float life = (w + 20f) / speed;
+					Color col = fxRand.Next(3) switch
+					{
+						0 => new Color(255, 245, 220),
+						1 => new Color(190, 225, 255),
+						_ => new Color(255, 215, 170)
+					};
+					farLights[i] = new FarLight
+					{
+						Active = true,
+						Pos = new Vector2(startX, y),
+						Vel = new Vector2(ltr ? speed : -speed, vy),
+						Life = life,
+						MaxLife = life,
+						Size = 1f + (float)fxRand.NextDouble() * 0.8f,
+						Phase = (float)(fxRand.NextDouble() * MathHelper.TwoPi),
+						Col = col
+					};
+					break;
+				}
+			}
+
+			Rectangle src = new Rectangle(0, 0, 1, 1);
+			for (int i = 0; i < MaxFarLights; i++)
+			{
+				if (!farLights[i].Active)
+					continue;
+
+				ref FarLight l = ref farLights[i];
+				l.Life -= dt;
+				l.Pos += l.Vel * dt;
+				if (l.Life <= 0f || l.Pos.Y > HorizonY(l.Pos.X) - 6f)
+				{
+					l.Active = false;
+					continue;
+				}
+
+				float age = 1f - l.Life / l.MaxLife;
+				float edge = Math.Min(SS(0f, 0.06f, age), SS(0f, 0.06f, 1f - age));
+				float blink = 0.75f + 0.25f * (float)Math.Sin(totalTime * 2.2f + l.Phase);
+				float a = edge * blink;
+
+				// Soft glow + tiny bright core + faint fading trail behind
+				DrawGlow(sb, l.Pos, 7f * l.Size, 7f * l.Size, new Color(l.Col.R, l.Col.G, l.Col.B, 0) * (0.35f * a));
+				Vector2 dir = Vector2.Normalize(l.Vel);
+				for (int t = 1; t <= 6; t++)
+				{
+					Vector2 tp = l.Pos - dir * (t * 3.5f);
+					sb.Draw(pixel, new Rectangle((int)tp.X, (int)tp.Y, 1, 1), src, l.Col * (a * 0.30f * (1f - t / 7f)));
+				}
+				int core = l.Size > 1.5f ? 2 : 1;
+				sb.Draw(pixel, new Rectangle((int)l.Pos.X, (int)l.Pos.Y, core, core), src, Color.White * a);
+			}
+		}
+
 		private static void DrawStars(SpriteBatch sb, Texture2D pixel, int w, int h, float dt)
 		{
 			Rectangle src = new Rectangle(0, 0, 1, 1);
@@ -1056,181 +1149,255 @@ namespace AutomataMusic.UI
 			}
 		}
 
-		private static void DrawAtmosphericTrail(SpriteBatch sb, Texture2D pixel, Vector2 headPos, Vector2 dirN, float angle, float fade, float lengthPx)
+		// Blackbody-ish colour ramp for re-entry plasma: 0 = white-hot, 1 = deep red
+		private static Color HeatColor(float k)
+		{
+			k = MathHelper.Clamp(k, 0f, 1f);
+			if (k < 0.33f) return Color.Lerp(new Color(255, 250, 235, 0), new Color(255, 214, 140, 0), k / 0.33f);
+			if (k < 0.66f) return Color.Lerp(new Color(255, 214, 140, 0), new Color(255, 120, 45, 0), (k - 0.33f) / 0.33f);
+			return Color.Lerp(new Color(255, 120, 45, 0), new Color(170, 38, 18, 0), (k - 0.66f) / 0.34f);
+		}
+
+		private static readonly List<Vector2> trailHist = new List<Vector2>();
+
+		// Walks back along the recorded flight path, returning points spaced `step` px apart (arc length)
+		private static int SampleTrail(Vector2 head, float step, Vector2[] outPts)
+		{
+			outPts[0] = head;
+			int n = 1;
+			Vector2 cur = head;
+			float need = step;
+			for (int i = 0; i < trailHist.Count && n < outPts.Length; i++)
+			{
+				Vector2 nxt = trailHist[i];
+				float seg = Vector2.Distance(cur, nxt);
+				while (seg >= need && n < outPts.Length)
+				{
+					cur = Vector2.Lerp(cur, nxt, need / seg);
+					outPts[n++] = cur;
+					seg = Vector2.Distance(cur, nxt);
+					need = step;
+				}
+				need -= seg;
+				cur = nxt;
+			}
+			return n;
+		}
+
+		private static readonly Vector2[] trailPts = new Vector2[200];
+
+		private static void DrawAtmosphericTrail(SpriteBatch sb, Texture2D pixel, Vector2 headPos, Vector2 dirN, float fade, float lengthPx, float s)
 		{
 			if (fade <= 0f || lengthPx <= 2f) return;
 
+			// Dense stamping of soft round glows along the flown path: no segments, no seams
+			const int steps = 150;
+			int n = SampleTrail(headPos, lengthPx / steps, trailPts);
+			if (n < 3) return;
+
+			for (int k = 0; k < n; k++)
+			{
+				float u = k / (float)steps;
+				float frac = 1f - u;
+				Vector2 a = trailPts[Math.Max(0, k - 1)];
+				Vector2 b = trailPts[Math.Min(n - 1, k + 1)];
+				Vector2 d = a - b;
+				float dl = d.Length();
+				Vector2 dir = dl > 0.001f ? d / dl : dirN;
+				Vector2 perp = new Vector2(-dir.Y, dir.X);
+
+				// Turbulence grows towards the tail
+				float wob = ((float)Math.Sin(k * 0.12f - totalTime * 11f) * 2.2f + (float)Math.Sin(k * 0.31f - totalTime * 19f) * 1.0f) * s * u;
+				Vector2 p = trailPts[k] + perp * wob;
+
+				float fall = (float)Math.Pow(frac, 1.35f);
+				// Wide dim sheath, mid coloured body, thin white-hot core
+				DrawGlow(sb, p, 30f * s * (0.25f + 0.75f * frac), 30f * s * (0.25f + 0.75f * frac), HeatColor(u * 0.95f) * (fade * fall * 0.050f));
+				DrawGlow(sb, p, 13f * s * (0.30f + 0.70f * frac), 13f * s * (0.30f + 0.70f * frac), HeatColor(u * 0.8f) * (fade * fall * 0.120f));
+				DrawGlow(sb, p, 5.5f * s * (0.35f + 0.65f * frac), 5.5f * s * (0.35f + 0.65f * frac), HeatColor(u * 0.5f) * (fade * fall * 0.260f));
+			}
+		}
+
+		private struct Ember
+		{
+			public Vector2 Pos, Vel;
+			public float Life, Max, Size;
+		}
+
+		private const int MaxEmbers = 220;
+		private static readonly Ember[] embers = new Ember[MaxEmbers];
+		private static int emberNext;
+		private static float emberAcc;
+		private static float fragTimer = 1.2f, flashLife;
+		private static Vector2 flashPos;
+		private static float shootVx, shootAltStart, shootAltEnd, shootStartX, shootY0, shootSlope, shootFall;
+
+		private static void SpawnEmber(Vector2 origin, Vector2 dirN, float s, float speedMul)
+		{
+			Vector2 perp = new Vector2(-dirN.Y, dirN.X);
+			float life = 0.5f + (float)fxRand.NextDouble() * 1.0f;
+			float back = (25f + (float)fxRand.NextDouble() * 95f) * s * speedMul;
+			float side = ((float)fxRand.NextDouble() - 0.5f) * 70f * s * speedMul;
+			embers[emberNext] = new Ember
+			{
+				Pos = origin + perp * (((float)fxRand.NextDouble() - 0.5f) * 8f * s),
+				Vel = -dirN * back + perp * side,
+				Life = life,
+				Max = life,
+				Size = fxRand.NextDouble() < 0.2 ? 2f : 1f
+			};
+			emberNext = (emberNext + 1) % MaxEmbers;
+		}
+
+		private static void DrawEmbers(SpriteBatch sb, Texture2D pixel, float dt, float s)
+		{
 			Rectangle src = new Rectangle(0, 0, 1, 1);
-
-			// 1. Soft atmospheric plasma glow sheath (volumetric, smooth, no harsh 1px line)
-			int glowSteps = 10;
-			for (int g = 0; g < glowSteps; g++)
+			for (int i = 0; i < MaxEmbers; i++)
 			{
-				float dist = (g / (float)glowSteps) * lengthPx;
-				Vector2 gp = headPos - dirN * dist;
-				float frac = 1f - (g / (float)glowSteps); // 1.0 at head, 0.0 at tail
+				ref Ember e = ref embers[i];
+				if (e.Life <= 0f)
+					continue;
 
-				float rx = 18f * (float)Math.Pow(frac, 0.7); // Tapers smoothly backwards
-				float ry = 9f * (float)Math.Pow(frac, 0.8);
-				float alpha = fade * (float)Math.Pow(frac, 1.2) * 0.45f;
+				e.Life -= dt;
+				if (e.Life <= 0f)
+					continue;
 
-				// Cyan-white celestial atmospheric airglow
-				DrawGlow(sb, gp, rx, ry, new Color(160, 215, 255, 0) * alpha, angle);
+				Vector2 toEarth = new Vector2(gCx, gCy) - e.Pos;
+				if (toEarth.LengthSquared() > 1f)
+					e.Vel += Vector2.Normalize(toEarth) * (14f * s * dt);
+				e.Vel *= 1f - 0.8f * dt;
+				e.Pos += e.Vel * dt;
+
+				float age = 1f - e.Life / e.Max;
+				float a = (float)Math.Pow(1f - age, 1.3) * planetFade;
+				int sz = (int)e.Size;
+				sb.Draw(pixel, new Rectangle((int)e.Pos.X, (int)e.Pos.Y, sz, sz), src, HeatColor(age * 1.05f) * a);
+				if (sz > 1)
+					DrawGlow(sb, e.Pos, 5f * s, 5f * s, HeatColor(age) * (a * 0.35f));
 			}
-
-			// 2. High-intensity inner incandescent beam with smooth width tapering
-			int beamSteps = 24;
-			float stepLen = lengthPx / beamSteps;
-			for (int k = 0; k < beamSteps; k++)
-			{
-				Vector2 p = headPos - dirN * (k * stepLen);
-				float frac = 1f - (k / (float)beamSteps);
-				float alpha = fade * (float)Math.Pow(frac, 1.4) * 0.90f;
-
-				// Thickness tapers from 4.5px at the head down to 1px at the tail
-				float thick = Math.Max(1f, 4.5f * frac);
-
-				Color beamCol = (k < 5)
-					? Color.Lerp(new Color(255, 255, 255, 0), new Color(220, 240, 255, 0), k / 5f)
-					: Color.Lerp(new Color(210, 235, 255, 0), new Color(140, 195, 255, 0), (k - 5) / (float)(beamSteps - 5));
-
-				sb.Draw(pixel, p, src, beamCol * alpha, angle, Vector2.Zero, new Vector2(stepLen + 1f, thick), SpriteEffects.None, 0f);
-			}
-
-			// 3. Blinding white ionization plasma coma at the head
-			DrawGlow(sb, headPos, 24f, 16f, new Color(190, 230, 255, 0) * (fade * 0.75f), angle);
-			DrawGlow(sb, headPos, 11f, 11f, new Color(255, 255, 255, 0) * (fade * 0.95f), angle);
 		}
 
 		private static void DrawShootingStar(SpriteBatch sb, Texture2D pixel, int w, int h, float dt)
 		{
+			float s = h / 1080f;
+			DrawEmbers(sb, pixel, dt, s);
+
+			if (flashLife > 0f)
+			{
+				flashLife -= dt;
+				float f = MathHelper.Clamp(flashLife / 0.35f, 0f, 1f);
+				DrawGlow(sb, flashPos, 55f * s * (1.3f - 0.3f * f), 55f * s * (1.3f - 0.3f * f), new Color(255, 190, 110, 0) * (0.55f * f * f));
+				DrawGlow(sb, flashPos, 20f * s, 20f * s, new Color(255, 245, 225, 0) * (0.85f * f * f));
+			}
+
 			if (shootLife > 0f)
 			{
 				shootLife -= dt;
-				float t = MathHelper.Clamp(1f - shootLife / shootMax, 0f, 1f); // [0..1] continuous progress
+				float t = MathHelper.Clamp(1f - shootLife / shootMax, 0f, 1f);
 
-				const float igniteThreshold = 0.44f; // Flies cold across deep space; ignites later when getting close to Earth
-
-				// Planetary gravity curving trajectory toward Earth (stronger the closer it gets to Earth)
-				Vector2 toEarth = new Vector2(gCx, gCy) - shootPos;
-				float distToEarth = toEarth.Length();
-				Vector2 gravDir = distToEarth > 1f ? (toEarth / distToEarth) : Vector2.UnitY;
-
-				// Altitude above Earth's spherical horizon
-				float altFromSurface = Math.Max(0f, distToEarth - gR);
-
-				// Gravity strength scales smoothly: subtle in deep space, curving progressively into Earth as it nears the atmosphere
-				float proximity = MathHelper.Clamp(1f - altFromSurface / (h * 0.32f), 0f, 1f);
-				float gravAccel = h * (0.0012f + 0.0050f * proximity * proximity);
-
-				shootVel += gravDir * (gravAccel * dt);
-				shootPos += shootVel * dt;
-
-				Vector2 dirN = shootVel.LengthSquared() > 0.001f ? Vector2.Normalize(shootVel) : new Vector2(-1f, 0f);
+				// Straight approach, then gravity pulls it into a steeper and steeper curve towards Earth
+				Vector2 prev = shootPos;
+				float xNow = shootPos.X + shootVx * dt;
+				float dxAbs = Math.Abs(xNow - shootStartX);
+				float yNow = shootY0 + shootSlope * dxAbs + shootFall * (float)Math.Pow(t, 2.6);
+				shootPos = new Vector2(xNow, yNow);
+				if (trailHist.Count == 0 || Vector2.Distance(trailHist[0], shootPos) >= 3f * s)
+				{
+					trailHist.Insert(0, shootPos);
+					if (trailHist.Count > 400)
+						trailHist.RemoveAt(trailHist.Count - 1);
+				}
+				Vector2 delta = shootPos - prev;
+				Vector2 dirN = delta.LengthSquared() > 0.0001f ? Vector2.Normalize(delta) : new Vector2(Math.Sign(shootVx), 0f);
 				float angle = (float)Math.Atan2(dirN.Y, dirN.X);
 
-				// Distance to Earth horizon below current position
-				float horizY = HorizonY(shootPos.X);
-				float altitude = horizY - shootPos.Y;
-
-				// ═════════════════════════════════════════════════════════════════
-				// Phase 1: Cold unburnt tumbling rock in space (no burning at all!)
-				// ═════════════════════════════════════════════════════════════════
+				const float igniteThreshold = 0.18f;
 				if (t < igniteThreshold)
 				{
+					// Cold tumbling rock approaching the atmosphere
 					float entryFade = MathHelper.Clamp(t / 0.05f, 0f, 1f);
-					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 2.8f, entryFade, heat: 0f, scale: 1f);
+					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 2.8f, entryFade, 0f, 1.2f);
 					return;
 				}
 
-				// ═════════════════════════════════════════════════════════════════
-				// Phase 2 & 3: Starts on fire touching Earth's atmosphere, burns longer,
-				// intensity swells, and smoothly fades away into the atmosphere!
-				// ═════════════════════════════════════════════════════════════════
-				float burnProgress = (t - igniteThreshold) / (1f - igniteThreshold); // [0..1]
-				const float peakBurn = 0.45f; // Peak intensity point
+				float p = (t - igniteThreshold) / (1f - igniteThreshold);
 
-				float intensity;
-				float rockScale;
-				float rockAlpha;
+				// Ignition ramp, long sustained burn with slow swells, then burn-out
+				float ramp = SS(0f, 0.14f, p);
+				float swell = 0.88f + 0.12f * (float)Math.Sin(p * Math.PI * 4.0);
+				float burnOut = 1f - SS(0.72f, 1f, p);
+				float flicker = 0.80f + 0.40f * SunFlicker(totalTime * 5f, 9f) + 0.08f * (float)Math.Sin(totalTime * 41f);
+				float intensity = ramp * swell * burnOut;
 
-				if (burnProgress < peakBurn)
-				{
-					// Starts on fire -> intensity builds smoothly to peak
-					float ramp = burnProgress / peakBurn; // 0 -> 1
-					intensity = (float)Math.Sin(ramp * Math.PI * 0.5); // 0.0 -> 1.0 smoothly
-					rockScale = 1.0f - 0.12f * ramp; // 1.0 -> 0.88
-					rockAlpha = 1.0f;
-				}
-				else
-				{
-					// Peak reached -> rock burns away (ablates to 0) & flame fades into the atmosphere
-					float fadeT = (burnProgress - peakBurn) / (1f - peakBurn); // 0 -> 1
-					float fadeOut = (float)Math.Cos(fadeT * Math.PI * 0.5); // 1.0 -> 0.0 smoothly
-					intensity = (float)Math.Pow(fadeOut, 1.35); // Smooth decay reaching 0.0 at t=1.0
+				float surfaceBuffer = 1f;
+				float altNow = HorizonY(shootPos.X) - shootPos.Y;
 
-					// Solid rock is vaporized into gas: scale and opacity shrink to 0
-					rockScale = Math.Max(0f, 0.88f * (1f - (float)Math.Pow(fadeT, 0.85)));
-					rockAlpha = (float)Math.Pow(Math.Max(0f, 1f - fadeT), 1.25);
-				}
+				float rockScale = 1.35f * (1f - SS(0.40f, 1f, p));
+				float rockAlpha = (1f - SS(0.80f, 1f, p)) * surfaceBuffer;
 
-				// Ensure rock and plasma completely vaporize before touching the solid surface
-				float surfaceBuffer = MathHelper.Clamp((altitude - 14f) / 28f, 0f, 1f);
-				intensity *= surfaceBuffer;
-				rockAlpha *= surfaceBuffer;
-
-				// Intense candle/flame flicker on the light when reaching maximum burning intensity
-				float distFromPeak = Math.Abs(burnProgress - peakBurn);
-				float peakZone = MathHelper.Clamp(1f - distFromPeak / 0.24f, 0f, 1f);
-				float candleFlicker = 1f;
-				if (peakZone > 0f)
-				{
-					// Dynamic flame luminance waver with sharp crests and dips
-					float wave = (float)(Math.Sin(totalTime * 20f) * 0.45 + Math.Sin(totalTime * 34f + 1.2) * 0.35 + Math.Sin(totalTime * 52f + 2.7) * 0.20);
-					candleFlicker = 1f + peakZone * 0.45f * wave; // Rich +/- 45% light intensity flicker
-				}
-				candleFlicker = Math.Max(0.25f, candleFlicker);
-
-				// Ionization plasma trail
-				float trailLen = 175f * intensity;
 				if (intensity > 0.005f)
 				{
-					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, angle, intensity * candleFlicker, trailLen);
+					// Shock-lit atmosphere on the limb beneath the meteor
+					Vector2 hp = new Vector2(shootPos.X, HorizonY(shootPos.X));
+					Vector2 rad = hp - new Vector2(gCx, gCy);
+					float tan = (float)Math.Atan2(rad.X, -rad.Y);
+					DrawGlow(sb, hp, 190f * s, 16f * s, new Color(255, 135, 65, 0) * (0.20f * intensity * flicker * SS(-0.04f * h, 0.03f * h, altNow)), tan);
 
-					// Candle-flickering light glow around the fireball at peak intensity
-					float glowPulse = 0.85f + 0.25f * candleFlicker;
-					DrawGlow(sb, shootPos, 24f * intensity * glowPulse, 24f * intensity * glowPulse, new Color(255, 205, 115, 0) * (intensity * 0.85f * candleFlicker));
-					DrawGlow(sb, shootPos, 44f * intensity * glowPulse, 44f * intensity * glowPulse, new Color(175, 225, 255, 0) * (intensity * 0.45f * candleFlicker));
+					// Heat-shedding embers
+					emberAcc += dt * 70f * intensity;
+					while (emberAcc >= 1f)
+					{
+						emberAcc -= 1f;
+						SpawnEmber(shootPos - dirN * (4f * s), dirN, s, 1f);
+					}
+
+					// Fragmentation: bright flash plus a burst of sparks
+					fragTimer -= dt;
+					if (fragTimer <= 0f && p > 0.1f && p < 0.85f)
+					{
+						fragTimer = 0.7f + (float)fxRand.NextDouble() * 1.3f;
+						flashLife = 0.35f;
+						flashPos = shootPos;
+						for (int i = 0; i < 14; i++)
+							SpawnEmber(shootPos, dirN, s, 1.8f);
+					}
+
+					DrawAtmosphericTrail(sb, pixel, shootPos, dirN, intensity * flicker, 520f * s * intensity, s);
+
+					// Fireball: orange bloom, yellow body, white-hot core, blue-white bow shock ahead
+					float g = intensity * flicker;
+					DrawGlow(sb, shootPos, 85f * s * g, 85f * s * g, new Color(255, 110, 40, 0) * (0.30f * intensity));
+					DrawGlow(sb, shootPos, 44f * s * g, 44f * s * g, new Color(255, 190, 100, 0) * (0.55f * intensity));
+					DrawGlow(sb, shootPos + dirN * (9f * s), 26f * s * g, 14f * s * g, new Color(175, 215, 255, 0) * (0.40f * intensity), angle);
+					DrawGlow(sb, shootPos, 18f * s * g, 18f * s * g, new Color(255, 246, 225, 0) * (0.95f * intensity));
 				}
 
-				// The rock itself: burns, glows red-hot, shrinks as it vaporizes, and dissolves into the atmosphere
 				if (rockAlpha > 0.01f && rockScale > 0.04f)
-				{
-					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.0f, rockAlpha, intensity * candleFlicker, rockScale);
-				}
+					DrawAsteroidRock(sb, pixel, shootPos, totalTime * 4.0f, rockAlpha, intensity * flicker, rockScale);
 				return;
 			}
 
 			shootTimer -= dt;
 			if (shootTimer <= 0f)
 			{
-				// Infrequent: spawns only once every 24 to 48 seconds
 				shootTimer = 24f + (float)fxRand.NextDouble() * 24f;
-				// Long lifetime (7.0s to 7.6s) allowing ~3.2s of cold approach and ~4.0s of sustained burning!
-				shootMax = shootLife = 7.0f + (float)fxRand.NextDouble() * 0.6f;
+				// ~2.5s cold approach, then ~11s of sustained burning
+				shootMax = shootLife = 14f + (float)fxRand.NextDouble() * 2f;
+				fragTimer = 1.0f;
 
-				// Spawn in space above Earth
 				bool rightToLeft = fxRand.NextDouble() < 0.55;
-				float startX = rightToLeft ? (w * (0.83f + (float)fxRand.NextDouble() * 0.04f)) : (w * (0.13f + (float)fxRand.NextDouble() * 0.04f));
-				// Entry corridor in space, approaching Earth's atmosphere:
-				float startY = h * (0.43f + (float)fxRand.NextDouble() * 0.03f);
-				shootPos = new Vector2(startX, startY);
-
-				// Shallow entry glide (5.8° to 7.6°) that curves smoothly into Earth as gravity takes hold
-				float downAngleDeg = 5.8f + (float)fxRand.NextDouble() * 1.8f;
-				float ang = MathHelper.ToRadians(rightToLeft ? (180f - downAngleDeg) : downAngleDeg);
-				float speed = w * (0.072f + (float)fxRand.NextDouble() * 0.005f);
-				shootVel = new Vector2((float)Math.Cos(ang), (float)Math.Sin(ang)) * speed;
+				float startX = rightToLeft ? w * (0.82f + (float)fxRand.NextDouble() * 0.04f) : w * (0.16f + (float)fxRand.NextDouble() * 0.04f);
+				shootVx = (rightToLeft ? -1f : 1f) * w * (0.044f + (float)fxRand.NextDouble() * 0.006f);
+				shootAltStart = h * (0.12f + (float)fxRand.NextDouble() * 0.03f);
+				shootAltEnd = -h * 0.11f; // dives well into the planet
+				shootStartX = startX;
+				shootY0 = HorizonY(startX) - shootAltStart;
+				shootSlope = 0.035f;
+				float endX = startX + shootVx * shootMax;
+				float endY = HorizonY(endX) - shootAltEnd;
+				shootFall = endY - shootY0 - shootSlope * Math.Abs(endX - startX);
+				shootPos = new Vector2(startX, shootY0);
+				trailHist.Clear();
 			}
 		}
 
@@ -1679,6 +1846,16 @@ namespace AutomataMusic.UI
 			sb.Draw(bunker, center, null, bunkerColor, rotation, origin, scale, SpriteEffects.None, 0f);
 		}
 
+		// Smooth, organic flicker in [0,1]: several incommensurate sines plus a rare "surge".
+		private static float SunFlicker(float t, float seed)
+		{
+			float f = (float)(Math.Sin(t * 1.7 + seed) * 0.40
+				+ Math.Sin(t * 3.9 + seed * 2.3) * 0.28
+				+ Math.Sin(t * 8.3 + seed * 0.7) * 0.20
+				+ Math.Sin(t * 17.1 + seed * 1.9) * 0.12);
+			return f * 0.5f + 0.5f;
+		}
+
 		private static void DrawSun(SpriteBatch sb, int w, int h)
 		{
 			if (cachedW <= 0)
@@ -1686,22 +1863,54 @@ namespace AutomataMusic.UI
 
 			float sxp = w * 0.10f;
 			Vector2 sun = new Vector2(sxp, HorizonY(sxp) - h * 0.004f);
-			float pulse = 1f + 0.035f * (float)Math.Sin(totalTime * 1.3f);
 			float fade = 0.35f + 0.65f * planetFade;
+
+			// Flicker channels: slow breathing, medium shimmer, and fast sparkle (atmospheric scintillation)
+			float slow = SunFlicker(totalTime * 0.55f, 0.4f);
+			float mid = SunFlicker(totalTime * 1.4f, 2.1f);
+			float fast = SunFlicker(totalTime * 3.2f, 5.7f);
+			float surge = (float)Math.Pow(Math.Max(0f, Math.Sin(totalTime * 0.37) * Math.Sin(totalTime * 0.91 + 1.3)), 3.0);
+
+			float pulse = 1f + 0.05f * (slow - 0.5f) * 2f + 0.025f * (mid - 0.5f) * 2f;
+			float coreBright = 0.82f + 0.18f * mid + 0.10f * fast + 0.12f * surge;
+			float haloBright = 0.85f + 0.30f * (slow - 0.5f) + 0.15f * surge;
 
 			// Tangent of the horizon at the sun (so the atmospheric flare hugs the curve)
 			Vector2 radial = sun - new Vector2(gCx, gCy);
 			float tangentAngle = (float)Math.Atan2(radial.X, -radial.Y);
 
-			DrawGlow(sb, sun, h * 0.60f * pulse, h * 0.60f * pulse, new Color(255, 150, 80, 0) * (0.14f * fade));
-			DrawGlow(sb, sun, w * 0.55f, h * 0.045f, new Color(110, 165, 255, 0) * (0.30f * fade), tangentAngle);
-			DrawGlow(sb, sun, w * 0.30f, h * 0.014f, new Color(255, 175, 95, 0) * (0.65f * fade), tangentAngle);
-			DrawGlow(sb, sun, h * 0.17f * pulse, h * 0.17f * pulse, new Color(255, 205, 160, 0) * (0.42f * fade));
-			DrawGlow(sb, sun, w * 0.75f, h * 0.0035f, new Color(170, 200, 255, 0) * (0.40f * fade));
-			DrawGlow(sb, sun, h * 0.035f, h * 0.035f, new Color(255, 248, 235, 0) * fade);
-			DrawGlow(sb, sun, h * 0.013f, h * 0.013f, new Color(255, 255, 255, 0) * fade);
+			// Heat-haze: the horizon flare wobbles in length and thickness
+			float haze = 1f + 0.06f * (float)Math.Sin(totalTime * 2.3) + 0.04f * (fast - 0.5f);
 
-			// Lens-flare ghosts along the sun → screen-centre axis
+			// Wide warm bloom
+			DrawGlow(sb, sun, h * 0.60f * pulse, h * 0.60f * pulse, new Color(255, 150, 80, 0) * (0.14f * fade * haloBright));
+			// Blue Rayleigh streak and warm streak along the limb
+			DrawGlow(sb, sun, w * 0.55f * haze, h * 0.045f * (0.9f + 0.2f * mid), new Color(110, 165, 255, 0) * (0.30f * fade * haloBright), tangentAngle);
+			DrawGlow(sb, sun, w * 0.30f * haze, h * 0.014f * (0.85f + 0.3f * fast), new Color(255, 175, 95, 0) * (0.65f * fade * coreBright), tangentAngle);
+			// Mid halo
+			DrawGlow(sb, sun, h * 0.17f * pulse, h * 0.17f * pulse, new Color(255, 205, 160, 0) * (0.42f * fade * haloBright));
+
+			// Corona rays: thin spikes that individually shimmer and slowly rotate
+			const int RayCount = 10;
+			for (int i = 0; i < RayCount; i++)
+			{
+				float ang = totalTime * 0.03f + i * (MathHelper.Pi / RayCount) + (i % 2) * 0.11f;
+				float rf = SunFlicker(totalTime * (1.1f + i * 0.17f), i * 1.37f);
+				float len = h * (0.22f + 0.16f * ((i * 7) % 5) / 4f) * (0.80f + 0.35f * rf);
+				float a = (0.050f + 0.060f * rf) * fade * (0.8f + 0.4f * surge);
+				DrawGlow(sb, sun, len, h * 0.0022f, new Color(255, 225, 185, 0) * a, ang);
+			}
+
+			// Long horizontal anamorphic streak, shimmering
+			DrawGlow(sb, sun, w * 0.75f * haze, h * 0.0035f, new Color(170, 200, 255, 0) * (0.40f * fade * (0.75f + 0.5f * fast)));
+
+			// Hot core: bright disc that flickers, with a slightly offset sparkle that jitters
+			DrawGlow(sb, sun, h * 0.035f * pulse, h * 0.035f * pulse, new Color(255, 248, 235, 0) * (fade * coreBright));
+			Vector2 jitter = new Vector2((fast - 0.5f) * 2.5f, (mid - 0.5f) * 1.5f);
+			DrawGlow(sb, sun + jitter, h * 0.020f, h * 0.020f, new Color(255, 240, 215, 0) * (0.35f * fade * fast));
+			DrawGlow(sb, sun, h * 0.013f * (0.95f + 0.1f * fast), h * 0.013f * (0.95f + 0.1f * fast), new Color(255, 255, 255, 0) * fade);
+
+			// Lens-flare ghosts along the sun -> screen-centre axis; each flickers out of phase
 			Vector2 axis = new Vector2(w * 0.5f, h * 0.5f) - sun;
 			float[] dist = { 0.45f, 0.80f, 1.25f, 1.60f, 1.95f };
 			float[] rad = { 0.020f, 0.045f, 0.016f, 0.075f, 0.030f };
@@ -1713,7 +1922,8 @@ namespace AutomataMusic.UI
 			for (int i = 0; i < dist.Length; i++)
 			{
 				float r = h * rad[i];
-				DrawGlow(sb, sun + axis * dist[i], r, r, cols[i] * (0.07f * fade));
+				float gf = 0.70f + 0.55f * SunFlicker(totalTime * 2.0f, 3f + i * 1.9f);
+				DrawGlow(sb, sun + axis * dist[i], r, r, cols[i] * (0.07f * fade * gf * coreBright));
 			}
 		}
 
